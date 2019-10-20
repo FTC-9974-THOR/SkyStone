@@ -154,6 +154,7 @@ public class ConceptVuforiaNavigationWebcam extends LinearOpMode {
          */
         parameters.cameraName = webcamName;
 
+
         /**
          * Instantiate the Vuforia engine
          */
