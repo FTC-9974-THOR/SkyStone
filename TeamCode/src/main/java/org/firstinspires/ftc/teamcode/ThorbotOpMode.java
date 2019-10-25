@@ -4,7 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
-import org.ftc9974.thorcore.control.IMUNavSource;
+import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 import org.ftc9974.thorcore.robot.drivetrains.KiwiDrive;
 
 @TeleOp(name = "Thorbot")

@@ -11,31 +11,40 @@ import org.ftc9974.thorcore.meta.Realizer;
 import org.ftc9974.thorcore.meta.annotation.Hardware;
 import org.ftc9974.thorcore.robot.Motor;
 import org.ftc9974.thorcore.util.MathUtilities;
-import org.ftc9974.thorcore.util.UpdateLoopHandler;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 2.5,
-                                MID_SHOULDER = 1.36,
-                                LOW_SHOULDER_LIMIT = 0.3;
+    private static final double HIGH_SHOULDER_LIMIT = 3.3,
+                                MID_SHOULDER = 1.39,
+                                LOW_SHOULDER_LIMIT = 0.493,
+                                SAFE_TO_YAW = 0.6;
 
     @Hardware
     public Motor shoulder;
 
     @Hardware
-    public ServoImplEx wrist, yaw, jaw0, jaw1;
+    public ServoImplEx yaw, jaw0, jaw1;
 
     @Hardware
     public AnalogInput pot;
 
     private PIDF shoulderPid;
-    private UpdateLoopHandler updateLoopHandler;
+    private boolean closedLoopEnabled;
 
     public Arm(HardwareMap hw) {
         Realizer.realize(this, hw);
-        jaw0.setPwmRange(new PwmControl.PwmRange(800, 1500));
-        jaw1.setPwmRange(new PwmControl.PwmRange(1450, 2200));
-        yaw.setPwmRange(new PwmControl.PwmRange(1050, 1860));
+        jaw0.setPwmRange(new PwmControl.PwmRange(
+                1145, // closed
+                2200 // open
+        ));
+        jaw1.setPwmRange(new PwmControl.PwmRange(
+                1935, // open
+                2020  // closed
+        ));
+        yaw.setPwmRange(new PwmControl.PwmRange(
+                1050, // wide
+                1934  // tall
+        ));
 
         shoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
@@ -44,31 +53,30 @@ public class Arm {
         shoulderPid.setNominalOutputReverse(-0.1);
         shoulderPid.setPeakOutputForward(0.5);
         shoulderPid.setPeakOutputReverse(-0.5);
-        shoulderPid.setAtTargetThreshold(0.05);
+        shoulderPid.setAtTargetThreshold(0);
 
         shoulderPid.setInputFunction(this::getArmPosition);
         shoulderPid.setOutputFunction(this::setShoulderPower);
-
-        updateLoopHandler = new UpdateLoopHandler(shoulderPid::update);
-        updateLoopHandler.startOnOpModeStart();
     }
 
     void grab() {
-        jaw0.setPosition(1);
-        jaw1.setPosition(0);
-    }
-
-    void release() {
         jaw0.setPosition(0);
         jaw1.setPosition(1);
     }
 
+    void release() {
+        jaw0.setPosition(1);
+        jaw1.setPosition(0);
+    }
+
     void configureForWide() {
-        yaw.setPosition(1);
+        if (getArmPosition() < SAFE_TO_YAW) {
+            yaw.setPosition(0);
+        }
     }
 
     void configureForTall() {
-        yaw.setPosition(0);
+        yaw.setPosition(1);
     }
 
     void setShoulderPower(double power) {
@@ -80,6 +88,9 @@ public class Arm {
             if ((power > 0 && getArmPosition() < MID_SHOULDER) || (power < 0 && getArmPosition() > MID_SHOULDER)) {
                 power *= 1.3;
             }
+            if (power > 0 && getArmPosition() > MID_SHOULDER) {
+                power = Math.min(power, 0.3);
+            }
             shoulder.setPower(power);
         }
     }
@@ -89,11 +100,11 @@ public class Arm {
     }
 
     void setClosedLoopEnabled(boolean enabled) {
-        updateLoopHandler.setEnabled(enabled);
+        closedLoopEnabled = enabled;
     }
 
     boolean isClosedLoopEnabled() {
-        return updateLoopHandler.isEnabled();
+        return closedLoopEnabled;
     }
 
     void setTargetPosition(double target) {
@@ -102,5 +113,18 @@ public class Arm {
 
     double getTargetPosition() {
         return shoulderPid.getSetpoint();
+    }
+
+    public double lastPIDError() {
+        return shoulderPid.getLastError();
+    }
+
+    public void update() {
+        if (closedLoopEnabled) {
+            shoulderPid.update();
+        }
+        if (getArmPosition() > SAFE_TO_YAW) {
+            configureForTall();
+        }
     }
 }
