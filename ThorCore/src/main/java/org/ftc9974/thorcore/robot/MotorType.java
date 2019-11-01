@@ -16,7 +16,7 @@ public enum MotorType {
     HD_HEX_40(1),
 
     YELLOWJACKET_5_2((int) (7 * 4 * 5.2)), // 1150 RPM
-    YELLOWJACKET_13_2((int) (7 * 4 * 13.7)); // 435 RPM
+    YELLOWJACKET_13_7((int) (7 * 4 * 13.7)); // 435 RPM
 
     public int ticksPerRevolution;
 

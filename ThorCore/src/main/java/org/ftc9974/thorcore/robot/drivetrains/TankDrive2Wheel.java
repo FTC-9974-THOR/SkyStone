@@ -14,7 +14,7 @@ import org.ftc9974.thorcore.meta.annotation.Hardware;
 public final class TankDrive2Wheel {
 
     @Hardware
-    DcMotor leftMotor, rightMotor;
+    public DcMotor leftMotor, rightMotor;
 
     public TankDrive2Wheel(HardwareMap hardwareMap) {
         Realizer.realize(this, hardwareMap);

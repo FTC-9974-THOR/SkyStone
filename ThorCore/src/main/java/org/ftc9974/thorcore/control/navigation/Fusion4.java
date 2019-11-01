@@ -1,5 +1,5 @@
 package org.ftc9974.thorcore.control.navigation;
 
-public final class Fusion3Algorithm {
+public final class Fusion4 {
 
 }

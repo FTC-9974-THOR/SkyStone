@@ -17,7 +17,7 @@ public final class KiwiDrive implements HolonomicDrivetrain {
 
     @SuppressWarnings("WeakerAccess")
     @Hardware
-    Motor wheel1, wheel2, wheel3;
+    public Motor wheel1, wheel2, wheel3;
 
     private NavSource navSource;
     private PIDF turningPidf;

@@ -42,8 +42,8 @@ public class Arm {
                 2020  // closed
         ));
         yaw.setPwmRange(new PwmControl.PwmRange(
-                1050, // wide
-                1934  // tall
+                1100, // wide
+                1950  // tall
         ));
 
         shoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -89,7 +89,7 @@ public class Arm {
                 power *= 1.3;
             }
             if (power > 0 && getArmPosition() > MID_SHOULDER) {
-                power = Math.min(power, 0.3);
+                power = Math.min(power, 1);
             }
             shoulder.setPower(power);
         }

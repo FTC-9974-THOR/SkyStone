@@ -30,7 +30,7 @@ public class BeulerTeleOp extends OpMode {
     @Override
     public void loop() {
         long startTime = System.nanoTime();
-        rb.drive(-gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        rb.drive(-gamepad2.right_stick_x, -gamepad2.right_stick_y, -gamepad2.left_stick_x);
 
         if (gamepad2.a) {
             arm.grab();

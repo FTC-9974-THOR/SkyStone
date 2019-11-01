@@ -67,8 +67,7 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
     private double speedLimit;
     private double[] progress;
     private int[] errors;
-    private boolean turningSettled;
-    private long turnSettleStart;
+    private boolean vuforiaEnabled;
 
     private State state;
 
@@ -131,7 +130,7 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
                 throw new RuntimeException(String.format(Locale.getDefault(), "The drivetrain (%s) and the encoder position calculator (%s) do not expect the same amount of encoders (drivetrain expected %d, encoder position calculator expected %d)", drivetrain.getClass().getSimpleName(), calculator.getClass().getSimpleName(), drivetrain.getEncoderPositions().length, calculator.calculate(Vector2.ZERO).length));
             }
             this.targetPosition = targetPosition;
-            if (false /*vuMarkNavSource.getNumVuMarksDetected() > 0*/) {
+            if (vuforiaEnabled && vuMarkNavSource.getNumVuMarksDetected() > 0) {
                 if (state != State.PIDF_DRIVE) {
                     pidfMovementStrategy.reset();
                 }
@@ -238,7 +237,7 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
 
     @Override
     public Vector2 getLocation() {
-        if (false /*vuMarkNavSource.getNumVuMarksDetected() > 0*/) {
+        if (vuforiaEnabled && vuMarkNavSource.getNumVuMarksDetected() > 0) {
             lastKnownLocation = vuMarkNavSource.getLocation();
             return lastKnownLocation;
         } else if (state == State.ENCODER_DRIVE || state == State.TURN_AFTER_DRIVE) {
@@ -259,5 +258,15 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
 
     public DiagnosticData getDiagnosticData() {
         return new DiagnosticData(state, lastKnownLocation, targetPosition, toTarget, encProgress, encTargets, encOffsets, progress, errors);
+    }
+
+    public void setVuforiaEnabled(boolean enabled) {
+        synchronized (lock) {
+            vuforiaEnabled = enabled;
+        }
+    }
+
+    public boolean isVuforiaEnabled() {
+        return vuforiaEnabled;
     }
 }

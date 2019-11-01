@@ -50,7 +50,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
     // https://mvnrepository.com/artifact/org.openftc/rev-extensions-2
-    implementation group: 'org.openftc', name: 'rev-extensions-2', version: '1.1'
+    implementation group: 'org.openftc', name: 'rev-extensions-2', version: '1.2'
 
     // https://mvnrepository.com/artifact/com.acmerobotics.roadrunner/core
     implementation group: 'com.acmerobotics.roadrunner', name: 'core', version: '0.2.3'
