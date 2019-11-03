@@ -30,7 +30,7 @@ public class BeulerTeleOp extends OpMode {
     @Override
     public void loop() {
         long startTime = System.nanoTime();
-        rb.drive(-gamepad2.right_stick_x, -gamepad2.right_stick_y, -gamepad2.left_stick_x);
+        rb.drive(-gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
 
         if (gamepad2.a) {
             arm.grab();
@@ -54,16 +54,16 @@ public class BeulerTeleOp extends OpMode {
 
         boolean currentInput = gamepad2.dpad_up || gamepad2.dpad_down;
 
-        if (gamepad2.left_bumper) {
+        if (gamepad2.right_bumper) {
             armRTP = true;
             arm.configureForTall();
             arm.grab();
-            arm.setTargetPosition(0.6);
-        } else if (gamepad2.right_bumper) {
+            arm.setTargetPosition(0.791);
+        } else if (gamepad2.left_bumper) {
             armRTP = true;
             arm.configureForTall();
             arm.release();
-            arm.setTargetPosition(3.0);
+            arm.setTargetPosition(2.4);
         }
 
         if (armRTP) {
