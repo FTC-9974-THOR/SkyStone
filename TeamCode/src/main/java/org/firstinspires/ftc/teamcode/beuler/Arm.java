@@ -17,7 +17,13 @@ public class Arm {
     private static final double HIGH_SHOULDER_LIMIT = 3.3,
                                 MID_SHOULDER = 1.39,
                                 LOW_SHOULDER_LIMIT = 0.493,
-                                SAFE_TO_YAW = 0.6;
+                                SAFE_TO_YAW = 0.6,
+                                JAW1_OPEN = 800,
+                                JAW1_READY = 1935,
+                                JAW1_CLOSED = 2020,
+                                JAW1_OPEN_POS = MathUtilities.map(JAW1_OPEN, 500, 2500, 0, 1),
+                                JAW1_READY_POS = MathUtilities.map(JAW1_READY, 500, 2500, 0, 1),
+                                JAW1_CLOSED_POS = MathUtilities.map(JAW1_CLOSED, 500, 2500, 0, 1);
 
     @Hardware
     public Motor shoulder;
@@ -31,6 +37,8 @@ public class Arm {
     private PIDF shoulderPid;
     private boolean closedLoopEnabled;
 
+    private boolean grabberOpen;
+
     public Arm(HardwareMap hw) {
         Realizer.realize(this, hw);
         jaw0.setPwmRange(new PwmControl.PwmRange(
@@ -38,8 +46,8 @@ public class Arm {
                 2200 // open
         ));
         jaw1.setPwmRange(new PwmControl.PwmRange(
-                1935, // open
-                2020  // closed
+                500, // open
+                2500  // closed
         ));
         yaw.setPwmRange(new PwmControl.PwmRange(
                 1100, // wide
@@ -48,7 +56,7 @@ public class Arm {
 
         shoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        shoulderPid = new PIDF(1.5, 0, 0, 0);
+        shoulderPid = new PIDF(3, 0, 0.1, 0);
         shoulderPid.setNominalOutputForward(0.1);
         shoulderPid.setNominalOutputReverse(-0.1);
         shoulderPid.setPeakOutputForward(0.5);
@@ -60,13 +68,19 @@ public class Arm {
     }
 
     void grab() {
+        grabberOpen = false;
         jaw0.setPosition(0);
-        jaw1.setPosition(1);
+        jaw1.setPosition(JAW1_CLOSED_POS);
     }
 
     void release() {
+        grabberOpen = true;
         jaw0.setPosition(1);
-        jaw1.setPosition(0);
+        if (getArmPosition() < MID_SHOULDER) {
+            jaw1.setPosition(JAW1_OPEN_POS);
+        } else {
+            jaw1.setPosition(JAW1_READY_POS);
+        }
     }
 
     void configureForWide() {
@@ -125,6 +139,13 @@ public class Arm {
         }
         if (getArmPosition() > SAFE_TO_YAW) {
             configureForTall();
+        }
+        if (grabberOpen) {
+            if (getArmPosition() < MID_SHOULDER) {
+                jaw1.setPosition(JAW1_OPEN_POS);
+            } else {
+                jaw1.setPosition(JAW1_READY_POS);
+            }
         }
     }
 }

@@ -57,12 +57,10 @@ public class BeulerTeleOp extends OpMode {
         if (gamepad2.right_bumper) {
             armRTP = true;
             arm.configureForTall();
-            arm.grab();
-            arm.setTargetPosition(0.791);
+            arm.setTargetPosition(1.39);
         } else if (gamepad2.left_bumper) {
             armRTP = true;
             arm.configureForTall();
-            arm.release();
             arm.setTargetPosition(2.4);
         }
 
