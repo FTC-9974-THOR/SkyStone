@@ -14,13 +14,13 @@ import org.ftc9974.thorcore.util.MathUtilities;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 3.3,
+    private static final double HIGH_SHOULDER_LIMIT = 3.27,
                                 MID_SHOULDER = 1.39,
                                 LOW_SHOULDER_LIMIT = 0.493,
                                 SAFE_TO_YAW = 0.6,
                                 JAW1_OPEN = 800,
-                                JAW1_READY = 1935,
-                                JAW1_CLOSED = 2020,
+                                JAW1_READY = 1790,
+                                JAW1_CLOSED = 1870,
                                 JAW1_OPEN_POS = MathUtilities.map(JAW1_OPEN, 500, 2500, 0, 1),
                                 JAW1_READY_POS = MathUtilities.map(JAW1_READY, 500, 2500, 0, 1),
                                 JAW1_CLOSED_POS = MathUtilities.map(JAW1_CLOSED, 500, 2500, 0, 1);
@@ -42,25 +42,25 @@ public class Arm {
     public Arm(HardwareMap hw) {
         Realizer.realize(this, hw);
         jaw0.setPwmRange(new PwmControl.PwmRange(
-                1145, // closed
-                2200 // open
+                700, // closed
+                1910 // open
         ));
         jaw1.setPwmRange(new PwmControl.PwmRange(
                 500, // open
                 2500  // closed
         ));
         yaw.setPwmRange(new PwmControl.PwmRange(
-                1100, // wide
-                1950  // tall
+                1085, // wide
+                1955  // tall
         ));
 
         shoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        shoulderPid = new PIDF(3, 0, 0.1, 0);
+        shoulderPid = new PIDF(0.4, 0, 0, 0);
         shoulderPid.setNominalOutputForward(0.1);
         shoulderPid.setNominalOutputReverse(-0.1);
-        shoulderPid.setPeakOutputForward(0.5);
-        shoulderPid.setPeakOutputReverse(-0.5);
+        shoulderPid.setPeakOutputForward(1);
+        shoulderPid.setPeakOutputReverse(-1);
         shoulderPid.setAtTargetThreshold(0);
 
         shoulderPid.setInputFunction(this::getArmPosition);
@@ -99,11 +99,8 @@ public class Arm {
         } else if (getArmPosition() > HIGH_SHOULDER_LIMIT) {
             shoulder.setPower(Math.min(0, power));
         } else {
-            if ((power > 0 && getArmPosition() < MID_SHOULDER) || (power < 0 && getArmPosition() > MID_SHOULDER)) {
-                power *= 1.3;
-            }
-            if (power > 0 && getArmPosition() > MID_SHOULDER) {
-                power = Math.min(power, 1);
+            if ((power < 0 && getArmPosition() < MID_SHOULDER) || (power > 0 && getArmPosition() > MID_SHOULDER)) {
+                power = MathUtilities.constrain(power, -0.5, 0.5);
             }
             shoulder.setPower(power);
         }

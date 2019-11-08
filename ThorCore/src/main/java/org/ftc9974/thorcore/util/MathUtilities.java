@@ -270,4 +270,13 @@ public final class MathUtilities {
 
         return numerator / denominator;
     }
+
+    public static double constrain(double x, double low, double high) {
+        if (x < low) {
+            return low;
+        } else if (x > high) {
+            return high;
+        }
+        return x;
+    }
 }

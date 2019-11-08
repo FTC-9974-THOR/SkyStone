@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareDevice;
@@ -11,8 +12,13 @@ import com.qualcomm.robotcore.hardware.TouchSensor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.ftc9974.thorcore.OpModeEnhanced;
+import org.ftc9974.thorcore.util.MathUtilities;
+import org.ftc9974.thorcore.util.StringUtilities;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -72,6 +78,27 @@ public class Debugger extends OpModeEnhanced {
             telemetry.addData("Voltage", analogInput.getVoltage());
             telemetry.addData("Manufacturer", analogInput.getManufacturer());
         }
+        telemetry.addLine("=== Color Sensors ===");
+        for (ColorSensor colorSensor : hardwareMap.getAll(ColorSensor.class)) {
+            String name = "No name found";
+            Iterator<String> nameIterator = hardwareMap.getNamesOf(colorSensor).iterator();
+            if (nameIterator.hasNext()) {
+                name = nameIterator.next();
+            }
+            telemetry.addData("Name", name);
+            double r = colorSensor.red();
+            double g = colorSensor.green();
+            double b = colorSensor.blue();
+            telemetry.addData("RGB", String.format(Locale.getDefault(), "%03d:%03d:%03d", (int) r, (int) g, (int) b));
+            r /= 255.0;
+            g /= 255.0;
+            b /= 255.0;
+            double[] hsv = MathUtilities.RGBtoHSV(r, g, b);
+            telemetry.addData("Hue", hsv[0]);
+            telemetry.addData("Saturation", hsv[1]);
+            telemetry.addData("Value", hsv[2]);
+            telemetry.addData("Manufacturer", colorSensor.getManufacturer());
+        }
         telemetry.addLine("=== All devices ===");
         for (HardwareMap.DeviceMapping<? extends HardwareDevice> deviceMapping : hardwareMap.allDeviceMappings) {
             telemetry.addLine(String.format(Locale.getDefault(), "=== %s ===", deviceMapping.getDeviceTypeClass().getSimpleName()));
@@ -84,4 +111,13 @@ public class Debugger extends OpModeEnhanced {
             }
         }
     }
+
+    // TODO
+    /*private <T extends HardwareDevice> void displayHardware(Class<T> hardwareType) {
+        String[] splitName = hardwareType.getSimpleName().split("(?=\\p{Upper})");
+        telemetry.addLine(String.format(Locale.getDefault(), "=== %ss ===", StringUtilities.join(" ", splitName)));
+        for (T device : hardwareMap.getAll(hardwareType)) {
+
+        }
+    }*/
 }

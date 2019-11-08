@@ -57,11 +57,13 @@ public final class PIDF {
     private double deadband;
     private double errorThreshold;
     private double lastInput;
+    private double lastOutput;
 
     private DoubleSupplier inputFunc;
     private DoubleConsumer outputFunc;
 
     private long lastTime = -1;
+    private long lastDTime = -1;
 
     private boolean continuous;
     private double contLow, contDiff, contHigh;
@@ -71,6 +73,10 @@ public final class PIDF {
 
     private double peakOutputForward, peakOutputReverse;
     private double nominalOutputForward, nominalOutputReverse;
+
+    private double period;
+    private boolean periodAppliesOnlyToDTerm;
+    private double lastDTerm;
 
     /**
      * Construct a new PIDF controller.
@@ -118,6 +124,8 @@ public final class PIDF {
         contLow = -1;
         contDiff = 2;
         contHigh = 1;
+        period = -1;
+        periodAppliesOnlyToDTerm = false;
     }
 
     /**
@@ -132,6 +140,29 @@ public final class PIDF {
         kI = i;
         kD = d;
         kF = f;
+    }
+
+    /**
+     * Sets the update frequency of the PIDF loop.
+     * Set to any value less than or equal to zero
+     * to allow the PIDF to update every time update()
+     * is called;
+     * @param period update frequency, in seconds
+     */
+    public void setPeriod(double period) {
+        this.period = period;
+    }
+
+    public double getPeriod() {
+        return period;
+    }
+
+    public void setIfPeriodAppliesOnlyToDTerm(boolean applies) {
+        periodAppliesOnlyToDTerm = applies;
+    }
+
+    public boolean getIfPeriodAppliesOnlyToDTerm() {
+        return periodAppliesOnlyToDTerm;
     }
 
     public void setOutputDeadband(double deadband) {
@@ -220,6 +251,10 @@ public final class PIDF {
         } else {
             this.setpoint = setpoint;
         }
+        // This is important! This updates the atTarget()
+        // logic. Without it, atTarget() can return false
+        // positives, due to lastError not being updated.
+        lastError = setpoint - lastInput;
     }
 
     /**
@@ -250,45 +285,57 @@ public final class PIDF {
      */
     public double update(double input) {
         double deltaTime = (SystemClock.uptimeMillis() - lastTime) / 1000.0;
-        double error = getContinuousError(((invertedPhase) ? -1 : 1) * (setpoint - input));
 
-        double pComponent = kP * error;
+        if (periodAppliesOnlyToDTerm || deltaTime >= period) {
+            double error = getContinuousError(((invertedPhase) ? -1 : 1) * (setpoint - input));
 
-        runningIntegral += error * deltaTime;
-        runningIntegral = Range.clip(runningIntegral, integralMin, integralMax);
-        double iComponent = kI * runningIntegral;
+            double pComponent = kP * error;
 
-        double d = (error - lastError) / deltaTime;
-        double dComponent = kD * d;
+            runningIntegral += error * deltaTime;
+            runningIntegral = Range.clip(runningIntegral, integralMin, integralMax);
+            double iComponent = kI * runningIntegral;
 
-        double fComponent = kF;
-
-        double output = pComponent + iComponent + dComponent + fComponent;
-
-        if (output > 0) {
-            // forward
-            if (peakOutputForward != 0 && output > peakOutputForward) {
-                output = peakOutputForward;
-            } else if (output < nominalOutputForward) {
-                output = nominalOutputForward;
+            double dComponent;
+            double dDeltaTime = (SystemClock.uptimeMillis() - lastDTime) / 1000.0;
+            if (!periodAppliesOnlyToDTerm || dDeltaTime >= period) {
+                double d = (error - lastError) / dDeltaTime;
+                dComponent = kD * d;
+                lastDTerm = dComponent;
+                lastDTime = SystemClock.uptimeMillis();
+            } else {
+                dComponent = lastDTerm;
             }
-        } else if (output < 0) {
-            // reverse
-            if (peakOutputReverse != 0 && output < peakOutputReverse) {
-                output = peakOutputReverse;
-            } else if (output > nominalOutputReverse) {
-                output = nominalOutputReverse;
+
+            double fComponent = kF;
+
+            double output = pComponent + iComponent + dComponent + fComponent;
+
+            if (output > 0) {
+                // forward
+                if (peakOutputForward != 0 && output > peakOutputForward) {
+                    output = peakOutputForward;
+                } else if (output < nominalOutputForward) {
+                    output = nominalOutputForward;
+                }
+            } else if (output < 0) {
+                // reverse
+                if (peakOutputReverse != 0 && output < peakOutputReverse) {
+                    output = peakOutputReverse;
+                } else if (output > nominalOutputReverse) {
+                    output = nominalOutputReverse;
+                }
+            }
+
+            lastError = error;
+            lastTime = SystemClock.uptimeMillis();
+            lastInput = input;
+            if (Math.abs(error) < errorThreshold) {
+                lastOutput = 0;
+            } else {
+                lastOutput = output;
             }
         }
-
-        lastError = error;
-        lastTime = SystemClock.uptimeMillis();
-        lastInput = input;
-        if (Math.abs(error) < errorThreshold) {
-            return 0;
-        } else {
-            return output;
-        }
+        return lastOutput;
     }
 
     /**

@@ -4,27 +4,27 @@ import android.os.SystemClock;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+
 public final class StallDetector {
 
-    private DcMotor motor;
-    private long lastTime;
-    private int lastPosition;
+    private Motor motor;
     private double stallThreshold;
 
-    public StallDetector(DcMotor motor, double threshold) {
+    public StallDetector(Motor motor, double threshold) {
         this.motor = motor;
-        lastTime = SystemClock.uptimeMillis();
-        lastPosition = motor.getCurrentPosition();
         stallThreshold = threshold;
     }
 
+    public void setStallThreshold(double threshold) {
+        stallThreshold = threshold;
+    }
+
+    public double getStallThreshold() {
+        return stallThreshold;
+    }
+
     public boolean isStalled() {
-        boolean ret = false;
-        if (Math.abs(motor.getPower()) > 0.05) {
-             ret = stallThreshold > (motor.getCurrentPosition() - lastPosition) / (SystemClock.uptimeMillis() - lastTime);
-        }
-        lastTime = SystemClock.uptimeMillis();
-        lastPosition = motor.getCurrentPosition();
-        return ret;
+        return motor.getPower() != 0 && Math.abs(motor.getVelocity(AngleUnit.RADIANS)) <= stallThreshold;
     }
 }

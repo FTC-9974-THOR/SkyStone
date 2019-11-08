@@ -9,15 +9,22 @@ public class MecanumEncoderCalculator implements EncoderPositionCalculator {
     private static final double RADICAL_SIN_QUARTER_PI = 1 / Math.sin(0.25 * Math.PI);
     private double[] COEFFICIENTS;
 
-    public MecanumEncoderCalculator(double gearRatio) {
+    /**
+     * Constructs a new MecanumEncoderCalculator object.
+     *
+     * @param gearRatio gear ratio between the motor armature and the output shaft
+     * @param wheelDiameter diameter of the wheel, in millimeters
+     */
+    public MecanumEncoderCalculator(double gearRatio, double wheelDiameter) {
         COEFFICIENTS = new double[] {
             // 7 pulses per magnet *
             // 4 edges per pulse *
             // gear ratio
-            (7 * 4 * gearRatio) / (MathUtilities.inchesToMM(4) * Math.PI),
-            (7 * 4 * gearRatio) / (MathUtilities.inchesToMM(4) * Math.PI),
-            (7 * 4 * gearRatio) / (MathUtilities.inchesToMM(4) * Math.PI),
-            (7 * 4 * gearRatio) / (MathUtilities.inchesToMM(4) * Math.PI)
+            // / wheel circumference
+            (7 * 4 * gearRatio) / (wheelDiameter * Math.PI),
+            (7 * 4 * gearRatio) / (wheelDiameter * Math.PI),
+            (7 * 4 * gearRatio) / (wheelDiameter * Math.PI),
+            (7 * 4 * gearRatio) / (wheelDiameter * Math.PI)
         };
     }
 

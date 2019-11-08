@@ -16,8 +16,11 @@ import org.ftc9974.thorcore.control.navigation.MecanumEncoderCalculator;
 import org.ftc9974.thorcore.control.navigation.Navigator;
 import org.ftc9974.thorcore.control.navigation.SensorFusionNavStrategy;
 import org.ftc9974.thorcore.control.navigation.VuMarkNavSource;
+import org.ftc9974.thorcore.robot.StallDetector;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
+import org.ftc9974.thorcore.util.CompositeFunction;
 import org.ftc9974.thorcore.util.MathUtilities;
+import org.ftc9974.thorcore.util.StringUtilities;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
 @Autonomous(name = "Skystone Auto")
@@ -26,12 +29,14 @@ public class SkystoneAuto extends LinearOpMode {
     private MecanumDrive rb;
     private SensorFusionNavStrategy fusion;
     private Navigator navigator;
-    private SkystoneGrabber sg;
+    private FoundationClaw claw;
 
     @Override
     public void runOpMode() throws InterruptedException {
         rb = new MecanumDrive(hardwareMap);
-        rb.setAxisInversion(false, true, false);
+        rb.setAxisInversion(true, true, false);
+        telemetry.log().add("Drivetrain Online.");
+        telemetry.update();
 
         OpenGLMatrix phoneLocation = new OpenGLMatrix();
         phoneLocation.rotate(AxesReference.EXTRINSIC, AxesOrder.YXZ, AngleUnit.DEGREES, -90, 90, 90);
@@ -51,55 +56,61 @@ public class SkystoneAuto extends LinearOpMode {
                 2,
                 0.075,
                 new Vector2(0, 0),
-                0,
-                new MecanumEncoderCalculator(13.7)
+                Math.PI / 2,
+                new MecanumEncoderCalculator(13.7, 96)
         );
         fusion.setVuforiaEnabled(false);
+        fusion.setSpeedLimit(0);
+        telemetry.log().add("Sensor Fusion Online.");
+        telemetry.update();
         navigator = new Navigator(fusion, rb, fusion);
         navigator.setEnabled(false);
         navigator.setAllowMovement(true);
         navigator.setAllowTurning(true);
+        telemetry.log().add("Navigation Online.");
+        telemetry.update();
 
-        sg = new SkystoneGrabber(hardwareMap);
+        claw = new FoundationClaw(hardwareMap);
 
         while (!isStarted() && !isStopRequested()) {
             telemetry.addLine("Ready.");
             telemetry.update();
         }
 
-        sg.setArmSpeed(0.6);
-        sg.setClosedLoopEnabled(false);
-        TimingUtilities.blockUntil(this, sg::homeSwitchPressed, this::update, () -> {
-            sg.setArmSpeed(0);
-        });
-        if (isStopRequested()) {
-            return;
-        }
+        claw.setClosedLoopEnabled(false);
+        claw.setPower(0.3);
 
-        sg.setArmSpeed(0);
-        sg.resetArmEncoder();
+        TimingUtilities.blockUntil(this, ((CompositeFunction) claw::isStalled).withMinimumTime(0.2), this::update, null);
+        claw.setPower(0);
+        if (isStopRequested()) return;
 
-        sg.release();
-        sg.extend();
-        TimingUtilities.blockUntil(this, sg::atTarget, this::update, () -> {
-            sg.setClosedLoopEnabled(false);
-            sg.setArmSpeed(0);
-        });
-        if (isStopRequested()) {
-            return;
-        }
+        claw.homeEncoder();
+        claw.retract();
+        claw.setClosedLoopEnabled(true);
 
-        sg.grab();
+        navigator.setTargetPosition(new Vector2(100, 0));
+        navigator.setEnabled(true);
+        TimingUtilities.blockUntil(this, navigator::atTarget, this::update, this::shutdown);
+        if (isStopRequested()) return;
 
-        TimingUtilities.sleep(this, 1, this::update, null);
-        if (isStopRequested()) {
-            return;
-        }
-
-        sg.retract();
+        TimingUtilities.blockUntil(this, this::isStopRequested, this::update, this::shutdown);
+        this.shutdown();
     }
 
     private void update() {
-        sg.update();
+        claw.update();
+        SensorFusionNavStrategy.DiagnosticData diagnosticData = fusion.getDiagnosticData();
+        telemetry.addData("State", diagnosticData.state);
+        telemetry.addData("Encoder Targets", StringUtilities.join(", ", diagnosticData.encTargets));
+        telemetry.addData("Encoder Positions", StringUtilities.join(", ", rb.getEncoderPositions()));
+        telemetry.addData("Encoder Progress", StringUtilities.join(", ", diagnosticData.progress));
+        telemetry.addData("Encoder Errors", StringUtilities.join(", ", diagnosticData.errors));
+        telemetry.addData("Average Progress", diagnosticData.encProgress);
+        //telemetry.addData("To Target", diagnosticData.toTarget.toString());
+        telemetry.update();
+    }
+
+    private void shutdown() {
+        navigator.shutdown();
     }
 }

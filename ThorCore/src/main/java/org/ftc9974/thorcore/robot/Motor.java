@@ -29,6 +29,8 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
 
     private ExpansionHubMotor expansionHubMotor;
 
+    private StallDetector stallDetector;
+
     private enum Mode {
         DC_MOTOR,
         SPARK_MINI
@@ -50,6 +52,7 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
                 expansionHubMotor = (ExpansionHubMotor) dcMotor;
             }
             dcMotor.setMode(RunMode.RUN_WITHOUT_ENCODER);
+            stallDetector = new StallDetector(this, 0.25 * Math.PI);
         } else if (hardwareMap.crservo.contains(name)) {
             mode = Mode.SPARK_MINI;
             sparkMini = hardwareMap.crservo.get(name);
@@ -382,6 +385,28 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
         } else {
             return expansionHubMotor.getCurrentDraw(ExpansionHubEx.CurrentDrawUnits.AMPS);
         }
+    }
+
+    public void setStallThreshold(double threshold) {
+        if (isMotor()) {
+            stallDetector.setStallThreshold(threshold);
+        }
+    }
+
+    public double getStallThreshold() {
+        if (isMotor()) {
+            return stallDetector.getStallThreshold();
+        }
+        return 0;
+    }
+
+    public boolean isStalled() {
+        // I know I could use a short-circuited boolean AND,
+        // but this is clearer
+        if (isMotor()) {
+            return stallDetector.isStalled();
+        }
+        return false;
     }
 
     @Override

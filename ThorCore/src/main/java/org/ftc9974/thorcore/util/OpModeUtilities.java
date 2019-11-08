@@ -1,5 +1,6 @@
 package org.ftc9974.thorcore.util;
 
+import com.qualcomm.ftccommon.FtcEventLoop;
 import com.qualcomm.ftccommon.configuration.RobotConfigFile;
 import com.qualcomm.ftccommon.configuration.RobotConfigFileManager;
 
@@ -17,7 +18,14 @@ public final class OpModeUtilities {
     }
 
     public static OpModeManagerImpl getOpModeManager() {
-        return OpModeManagerImpl.getOpModeManagerOfActivity(AppUtil.getInstance().getRootActivity());
+        OpModeManagerImpl manager = OpModeManagerImpl.getOpModeManagerOfActivity(AppUtil.getInstance().getRootActivity());
+        if (manager == null) {
+            manager = OpModeManagerImpl.getOpModeManagerOfActivity(AppUtil.getInstance().getActivity());
+        }
+        if (manager == null) {
+            throw new RuntimeException("Unable to obtain an instance of OpModeManagerImpl. This is an internal error.");
+        }
+        return manager;
     }
 
     public static void registerListener(OpModeManagerImpl.Notifications listener) {
