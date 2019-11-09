@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 
+@Disabled
 @TeleOp(name = "Granny Tele Op")
 public class GrannyTeleOp extends OpMode {
 

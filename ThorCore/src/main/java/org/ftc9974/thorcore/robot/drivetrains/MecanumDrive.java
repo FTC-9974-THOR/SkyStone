@@ -21,6 +21,7 @@ public final class MecanumDrive implements HolonomicDrivetrain {
     public DcMotor frontLeft, frontRight, backLeft, backRight;
 
     private boolean xInv, yInv, tInv;
+    private boolean flInv, frInv, blInv, brInv;
 
     /**
      * Creates a new MecanumDrive object.
@@ -40,6 +41,13 @@ public final class MecanumDrive implements HolonomicDrivetrain {
         xInv = x;
         yInv = y;
         tInv = rot;
+    }
+
+    public void setEncoderInversion(boolean fl, boolean fr, boolean bl, boolean br) {
+        flInv = fl;
+        frInv = fr;
+        blInv = bl;
+        brInv = br;
     }
 
     /**
@@ -90,7 +98,12 @@ public final class MecanumDrive implements HolonomicDrivetrain {
 
     @Override
     public @Size(4) int[] getEncoderPositions() {
-        return new int[] {frontLeft.getCurrentPosition(), frontRight.getCurrentPosition(), backLeft.getCurrentPosition(), backRight.getCurrentPosition()};
+        return new int[] {
+                (flInv ? -1 : 1) * frontLeft.getCurrentPosition(),
+                (frInv ? -1 : 1) * frontRight.getCurrentPosition(),
+                (blInv ? -1 : 1) * backLeft.getCurrentPosition(),
+                (brInv ? -1 : 1) * backRight.getCurrentPosition()
+        };
     }
 
     @Override

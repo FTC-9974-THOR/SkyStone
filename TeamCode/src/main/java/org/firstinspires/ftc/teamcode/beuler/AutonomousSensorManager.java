@@ -1,18 +1,23 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.ftc9974.thorcore.meta.Realizer;
 import org.ftc9974.thorcore.meta.annotation.Hardware;
 import org.ftc9974.thorcore.util.MathUtilities;
 
-public class SensorSuite {
+public class AutonomousSensorManager {
 
     @Hardware
     public ColorSensor tapeSensor;
 
-    public SensorSuite(HardwareMap hw) {
+    @Hardware
+    public DistanceSensor leftDistance, rightDistance;
+
+    public AutonomousSensorManager(HardwareMap hw) {
         Realizer.realize(this, hw);
     }
 
@@ -33,6 +38,14 @@ public class SensorSuite {
     }
 
     public boolean onTape() {
-        return getTapeSensorHSV()[1] > 0.5;
+        return getTapeSensorHSV()[1] > 0.3;
+    }
+
+    public double getLeftDistance() {
+        return leftDistance.getDistance(DistanceUnit.CM);
+    }
+
+    public double getRightDistance() {
+        return rightDistance.getDistance(DistanceUnit.CM);
     }
 }

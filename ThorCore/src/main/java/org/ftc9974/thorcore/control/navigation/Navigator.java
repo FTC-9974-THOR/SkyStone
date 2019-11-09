@@ -52,7 +52,6 @@ public final class Navigator implements OpModeManagerNotifier.Notifications {
         OpModeUtilities.registerListener(this);
 
         drivetrain.resetEncoders();
-        drivetrain.setMotorModes(DcMotor.RunMode.RUN_USING_ENCODER);
 
         navigationThread.start();
     }
@@ -105,7 +104,8 @@ public final class Navigator implements OpModeManagerNotifier.Notifications {
 
     public boolean atTarget() {
         synchronized (movementLock) {
-            return movementStrategy.atPositionalTarget() && movementStrategy.atHeadingTarget();
+            return (!hasPosition.get() || movementStrategy.atPositionalTarget()) &&
+                    (!hasHeading.get() || movementStrategy.atHeadingTarget());
         }
     }
 

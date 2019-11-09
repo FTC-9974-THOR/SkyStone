@@ -23,18 +23,19 @@ public class BeulerTeleOp extends OpMode {
     @Override
     public void init() {
         rb = new MecanumDrive(hardwareMap);
-        rb.setAxisInversion(false, true, false);
+        rb.setAxisInversion(true, true, false);
         arm = new Arm(hardwareMap);
         intake = new Intake(hardwareMap);
         foundationClaw = new FoundationClaw(hardwareMap);
 
         arm.setTargetPosition(arm.getArmPosition());
+        arm.configureForTall();
     }
 
     @Override
     public void loop() {
         long startTime = System.nanoTime();
-        rb.drive(-gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
 
         if (gamepad2.a) {
             arm.grab();
@@ -42,10 +43,10 @@ public class BeulerTeleOp extends OpMode {
             arm.release();
         }
 
-        if (gamepad2.y) {
-            arm.configureForTall();
-        } else if (gamepad2.x) {
-            arm.configureForWide();
+        if (gamepad1.x) {
+            foundationClaw.extend();
+        } else if (gamepad1.y) {
+            foundationClaw.retract();
         }
 
         if (gamepad2.left_trigger > 0.8) {

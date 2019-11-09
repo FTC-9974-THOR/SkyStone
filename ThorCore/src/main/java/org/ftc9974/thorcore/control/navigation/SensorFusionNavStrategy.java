@@ -12,6 +12,7 @@ import org.ftc9974.thorcore.control.HolonomicDrivetrain;
 import org.ftc9974.thorcore.control.math.Vector2;
 import org.ftc9974.thorcore.util.MathUtilities;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -44,7 +45,7 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
         }
     }
 
-    private enum State {
+    public enum State {
         ENCODER_DRIVE,
         PIDF_DRIVE,
         TURN_AFTER_DRIVE
@@ -123,6 +124,13 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
         errors = new int[encTargets.length];
     }
 
+    public void updatePosition(Vector2 position) {
+        synchronized (lock) {
+            lastKnownLocation = position;
+            reset();
+        }
+    }
+
     @Override
     public double[] calculateMovement(HolonomicDrivetrain drivetrain, Vector2 currentPosition, double currentHeading, Vector2 targetPosition, double targetHeading) {
         synchronized (lock) {
@@ -192,10 +200,10 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
         for (int i = 0; i < encTargets.length; i++) {
             errors[i] = Math.abs(encTargets[i] - current[i]);
             double target = (((double) encTargets[i]) - ((double) encOffsets[i]));
-            if (MathUtilities.applyDeadband(target, 20) == 0) {
+            if (MathUtilities.applyDeadband(errors[i], 20) == 0) {
                 progress[i] = 1;
             } else {
-                progress[i] = (current[i] - encOffsets[i]) / target;
+                progress[i] = Math.abs(current[i] - encOffsets[i] / target);
             }
         }
         encProgress = MathUtilities.average(progress);
@@ -228,10 +236,10 @@ public class SensorFusionNavStrategy implements NavSource, MovementStrategy {
     public void reset() {
         synchronized (lock) {
             pidfMovementStrategy.reset();
+            Arrays.fill(progress, 0);
+            Arrays.fill(errors, 0);
             encProgress = 0;
-            if (state == State.TURN_AFTER_DRIVE || state == State.ENCODER_DRIVE) {
-                state = State.PIDF_DRIVE;
-            }
+            state = State.PIDF_DRIVE;
         }
     }
 
