@@ -7,6 +7,9 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.ftc9974.thorcore.control.HolonomicDrivetrain;
+import org.ftc9974.thorcore.control.PIDF;
+import org.ftc9974.thorcore.control.navigation.IMUNavSource;
+import org.ftc9974.thorcore.control.navigation.NavSource;
 import org.ftc9974.thorcore.meta.Realizer;
 import org.ftc9974.thorcore.meta.annotation.Hardware;
 import org.ftc9974.thorcore.util.MathUtilities;

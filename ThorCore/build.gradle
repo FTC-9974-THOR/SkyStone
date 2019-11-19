@@ -49,11 +49,6 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
-    // https://mvnrepository.com/artifact/org.openftc/rev-extensions-2
-    implementation group: 'org.openftc', name: 'rev-extensions-2', version: '1.2'
-
-    // https://mvnrepository.com/artifact/com.acmerobotics.roadrunner/core
-    implementation group: 'com.acmerobotics.roadrunner', name: 'core', version: '0.2.3'
     implementation 'com.android.support:support-annotations:28.0.0'
     implementation 'org.jetbrains:annotations:15.0'
 

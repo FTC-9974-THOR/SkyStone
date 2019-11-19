@@ -4,8 +4,13 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.ftc9974.thorcore.control.PIDF;
+import org.ftc9974.thorcore.control.math.Vector2;
+import org.ftc9974.thorcore.control.navigation.IMUNavSource;
+import org.ftc9974.thorcore.control.navigation.NavSource;
 import org.ftc9974.thorcore.robot.Motor;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
+import org.ftc9974.thorcore.util.MathUtilities;
 
 @TeleOp(name = "Beuler Tele Op")
 public class BeulerTeleOp extends OpMode {
@@ -20,6 +25,13 @@ public class BeulerTeleOp extends OpMode {
     private boolean maxDetectionActive;
     private double lastError;
 
+    private NavSource navSource;
+    private PIDF headingPid;
+    private boolean lastTurnInput;
+    private boolean turnMaxDetectionActive;
+    private double lastTurnError;
+    private long lastTimeStamp;
+
     @Override
     public void init() {
         rb = new MecanumDrive(hardwareMap);
@@ -30,24 +42,79 @@ public class BeulerTeleOp extends OpMode {
 
         arm.setTargetPosition(arm.getArmPosition());
         arm.configureForTall();
+
+        navSource = new IMUNavSource(hardwareMap);
+        headingPid = new PIDF(0.7, 0, 0, 0);
+        headingPid.setInputFunction(navSource::getHeading);
+        headingPid.setAtTargetThreshold(Math.toRadians(1));
+        headingPid.setContinuityRange(-Math.PI, Math.PI);
+        headingPid.setContinuous(true);
     }
 
     @Override
     public void loop() {
         long startTime = System.nanoTime();
-        rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        lastTimeStamp = startTime;
+
+        //Vector2 driveInput = new Vector2(gamepad1.right_stick_x, -gamepad1.right_stick_y);
+        //driveInput = driveInput.rotate(navSource.getHeading());
+        boolean currentTurnInput = Math.abs(gamepad1.left_stick_x) > 0.1;
+        double currentTurnError = Math.abs(headingPid.getLastError());
+        if (currentTurnInput && !lastTurnInput) {
+            // begin turning
+            rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        } else if (currentTurnInput && lastTurnInput) {
+            // turning
+            rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        } else if (lastTurnInput) {
+            // end turning
+            turnMaxDetectionActive = true;
+            headingPid.setSetpoint(navSource.getHeading());
+            rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, -gamepad1.left_stick_x);
+        } else {
+            // idle
+            if (turnMaxDetectionActive) {
+                if (currentTurnError < lastTurnError) {
+                    headingPid.setSetpoint(navSource.getHeading());
+                    turnMaxDetectionActive = false;
+                }
+            }
+            rb.drive(gamepad1.right_stick_x, -gamepad1.right_stick_y, headingPid.update());
+        }
+        lastTurnInput = currentTurnInput;
+        lastTurnError = currentTurnError;
+
+        telemetry.addData("Drive System Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
 
         if (gamepad2.a) {
             arm.grab();
         } else if (gamepad2.b) {
             arm.release();
+        } else if (gamepad2.dpad_left) {
+            arm.configureForPush();
         }
+
+        telemetry.addData("Manipulator Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
+
+        if (gamepad2.x) {
+            arm.configureForTall();
+        } else if (gamepad2.y) {
+            arm.configureForWide();
+        }
+
+        telemetry.addData("Yaw Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
 
         if (gamepad1.x) {
             foundationClaw.extend();
         } else if (gamepad1.y) {
             foundationClaw.retract();
         }
+
+        telemetry.addData("Claw Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
 
         if (gamepad2.left_trigger > 0.8) {
             intake.intake(1);
@@ -57,11 +124,8 @@ public class BeulerTeleOp extends OpMode {
             intake.stop();
         }
 
-        if (gamepad2.dpad_left) {
-            foundationClaw.retract();
-        } else if (gamepad2.dpad_right) {
-            foundationClaw.extend();
-        }
+        telemetry.addData("Intake Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
 
         boolean currentInput = gamepad2.dpad_up || gamepad2.dpad_down;
 
@@ -72,7 +136,7 @@ public class BeulerTeleOp extends OpMode {
         } else if (gamepad2.left_bumper) {
             armRTP = true;
             arm.configureForTall();
-            arm.setTargetPosition(2.2);
+            arm.setTargetPosition(2.97);
         }
 
         if (armRTP) {
@@ -96,11 +160,11 @@ public class BeulerTeleOp extends OpMode {
                     // just in case
                     arm.setShoulderPower(0);
                 }
-            }
-            if (maxDetectionActive) {
+            } else if (maxDetectionActive) {
                 double error = Math.abs(arm.lastPIDError());
                 if (error < lastError) {
                     arm.setTargetPosition(arm.getArmPosition());
+                    arm.setShoulderPower(0);
                     maxDetectionActive = false;
                 }
             }
@@ -108,14 +172,14 @@ public class BeulerTeleOp extends OpMode {
         lastShoulderInput = currentInput;
         lastError = Math.abs(arm.lastPIDError());
 
+        telemetry.addData("Shoulder Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
+
         arm.update();
         foundationClaw.update();
 
-        telemetry.addData("Position", arm.getArmPosition());
-        telemetry.addData("Closed-Loop Active", arm.isClosedLoopEnabled());
-        telemetry.addData("Target Position", arm.getTargetPosition());
-        telemetry.addData("Claw Position", foundationClaw.getCurrentPosition());
-        telemetry.addData("Claw Velocity", foundationClaw.claw.getVelocity(AngleUnit.RADIANS));
+        telemetry.addData("Update Time", (System.nanoTime() - lastTimeStamp) / 1000000);
+        lastTimeStamp = System.nanoTime();
 
         telemetry.addData("Loop Time", (System.nanoTime() - startTime) / 1000000.0);
     }

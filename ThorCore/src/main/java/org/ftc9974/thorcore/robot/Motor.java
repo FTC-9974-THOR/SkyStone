@@ -13,8 +13,6 @@ import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigu
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.ftc9974.thorcore.internal.RealizableFactory;
-import org.openftc.revextensions2.ExpansionHubEx;
-import org.openftc.revextensions2.ExpansionHubMotor;
 
 import java.util.Locale;
 
@@ -26,8 +24,6 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
 
     private DcMotorEx dcMotor;
     private CRServo sparkMini;
-
-    private ExpansionHubMotor expansionHubMotor;
 
     private StallDetector stallDetector;
 
@@ -48,9 +44,6 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
         if (hardwareMap.dcMotor.contains(name)) {
             mode = Mode.DC_MOTOR;
             dcMotor = (DcMotorEx) hardwareMap.dcMotor.get(name);
-            if (dcMotor instanceof ExpansionHubMotor) {
-                expansionHubMotor = (ExpansionHubMotor) dcMotor;
-            }
             dcMotor.setMode(RunMode.RUN_WITHOUT_ENCODER);
             stallDetector = new StallDetector(this, 0.25 * Math.PI);
         } else if (hardwareMap.crservo.contains(name)) {
@@ -375,16 +368,6 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
 
     public boolean isOnRevHub() {
         return dcMotor.getController().getManufacturer().equals(Manufacturer.Lynx);
-    }
-
-    public double getCurrentDraw() {
-        // TODO: 4/10/19 Figure out why RevExtensions2 has imploded
-        // FIX: 10/27/19 It seems to be working?
-        if (!isOnRevHub() || expansionHubMotor == null) {
-            return 0;
-        } else {
-            return expansionHubMotor.getCurrentDraw(ExpansionHubEx.CurrentDrawUnits.AMPS);
-        }
     }
 
     public void setStallThreshold(double threshold) {

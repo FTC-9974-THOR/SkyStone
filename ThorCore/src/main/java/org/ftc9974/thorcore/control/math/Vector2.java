@@ -112,4 +112,11 @@ public final class Vector2 {
         double[] rotated = MathUtilities.rotate2D(vec1.values, theta);
         return new Vector2(rotated[0], rotated[1]);
     }
+
+    public static Vector2 lerp(Vector2 a, Vector2 b, double t) {
+        return new Vector2(
+                MathUtilities.lerp(a.getX(), b.getX(), t),
+                MathUtilities.lerp(a.getY(), b.getY(), t)
+        );
+    }
 }

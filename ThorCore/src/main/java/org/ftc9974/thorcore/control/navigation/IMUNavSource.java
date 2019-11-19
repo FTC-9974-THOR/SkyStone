@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
@@ -30,6 +31,8 @@ public final class IMUNavSource implements NavSource, BNO055IMU.AccelerationInte
 
     private static final boolean rotationRequired = false;
 
+    private boolean isFallback;
+
     public IMUNavSource(HardwareMap hardwareMap) {
         this(hardwareMap, 3, null);
     }
@@ -51,7 +54,13 @@ public final class IMUNavSource implements NavSource, BNO055IMU.AccelerationInte
         parameters.accelerationIntegrationAlgorithm = this;
         parameters.calibrationDataFile = calibrationFile;
         if (!imu.initialize(parameters)) {
-            throw new RuntimeException("Error initializing IMU! Error: " + imu.getSystemError().toString());
+            RobotLog.e("Error initializing IMU! Error: " + imu.getSystemError().toString());
+        } else {
+            imu = hardwareMap.get(BNO055IMU.class, "imu 0");
+            isFallback = true;
+            if (!imu.initialize(parameters)) {
+                throw new RuntimeException("Both IMUs have failed! Error message: " + imu.getSystemError().toString());
+            }
         }
         imu.startAccelerationIntegration(null, null, 10);
     }
@@ -62,6 +71,10 @@ public final class IMUNavSource implements NavSource, BNO055IMU.AccelerationInte
 
     public BNO055IMU getImu() {
         return imu;
+    }
+
+    public boolean isFallback() {
+        return isFallback;
     }
 
     @Override

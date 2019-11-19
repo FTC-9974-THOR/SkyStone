@@ -215,25 +215,21 @@ public final class VuMarkNavSource implements NavSource {
      * Gets the location of the stone relative to the robot origin
      * @return location
      */
-    public @Nullable Vector2 getRelativeStoneLocation() {
-        if (!canSeeStone()) {
-            return null;
-        }
-        VuforiaTrackableDefaultListener listener = (VuforiaTrackableDefaultListener) stoneTarget.getListener();
-        OpenGLMatrix relativeStoneLocation = listener.getUpdatedRobotLocation();
+    public @Nullable OpenGLMatrix getRelativeStoneLocation() {
+        OpenGLMatrix relativeStoneLocation = ((VuforiaTrackableDefaultListener) stoneTarget.getListener()).getUpdatedRobotLocation();
         if (relativeStoneLocation != null) {
             lastKnownStoneLocation = relativeStoneLocation;
         }
 
-        VectorF translation = lastKnownLocation.getTranslation();
-        return new Vector2(-translation.get(1), translation.get(0)).scalarMultiply(-1);
+        return lastKnownStoneLocation;
     }
 
-    /**
+    /*
      * Gets the location of the stone relative to field origin
      * @return location
      */
-    public Vector2 getAbsoluteStoneLocation() {
+    //todo
+    /*public Vector2 getAbsoluteStoneLocation() {
         return getLocation().add(getRelativeStoneLocation());
-    }
+    }*/
 }

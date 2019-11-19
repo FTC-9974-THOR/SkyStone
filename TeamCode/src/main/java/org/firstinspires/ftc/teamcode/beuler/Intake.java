@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.ftc9974.thorcore.meta.Realizer;
@@ -9,7 +10,7 @@ import org.ftc9974.thorcore.robot.Motor;
 public class Intake {
 
     @Hardware
-    public Motor intake0, intake1;
+    public DcMotorEx intake0, intake1;
 
     public Intake(HardwareMap hw) {
         Realizer.realize(this, hw);

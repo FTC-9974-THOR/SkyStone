@@ -56,6 +56,8 @@ public class FoundationAuto extends LinearOpMode {
         headingPid.setPhase(false);
         headingPid.setPeakOutputForward(1);
         headingPid.setPeakOutputReverse(-1);
+        headingPid.setContinuityRange(-Math.PI, Math.PI);
+        headingPid.setContinuous(true);
         strafePid = new PIDF(0.25, 0, 0, 0);
         strafePid.setNominalOutputForward(0.1);
         strafePid.setNominalOutputReverse(-0.1);

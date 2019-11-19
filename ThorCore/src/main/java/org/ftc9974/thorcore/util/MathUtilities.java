@@ -20,6 +20,14 @@ public final class MathUtilities {
 
     private MathUtilities() {}
 
+    public static double sum(double... doubles) {
+        double sum = 0;
+        for (double aDouble : doubles) {
+            sum += aDouble;
+        }
+        return sum;
+    }
+
     public static byte min(byte... bytes) {
         Arrays.sort(bytes);
         return bytes[0];

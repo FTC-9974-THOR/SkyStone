@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
@@ -25,12 +26,17 @@ public class VuforiaDebugger extends OpMode {
 
     @Override
     public void loop() {
-        if (vuforia.canSeeStone()) {
-            Vector2 stoneLocation = vuforia.getRelativeStoneLocation();
-            if (stoneLocation != null) {
-                telemetry.addData("X", stoneLocation.getX());
-                telemetry.addData("Y", stoneLocation.getY());
-            }
+        telemetry.addData("Can See Stone", vuforia.canSeeStone());
+        OpenGLMatrix stoneLocation = vuforia.getRelativeStoneLocation();
+        if (stoneLocation != null) {
+            VectorF translation = stoneLocation.getTranslation();
+            telemetry.addData(
+                    "Translation",
+                    "%f, %f, %f",
+                    translation.get(0),
+                    translation.get(1),
+                    translation.get(2)
+            );
         }
     }
 }

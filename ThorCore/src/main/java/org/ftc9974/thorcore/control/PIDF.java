@@ -78,6 +78,8 @@ public final class PIDF {
     private boolean periodAppliesOnlyToDTerm;
     private double lastDTerm;
 
+    private double deadzone;
+
     /**
      * Construct a new PIDF controller.
      * @param coefficients PIDF coefficients
@@ -284,26 +286,35 @@ public final class PIDF {
      * @return output of the PIDF
      */
     public double update(double input) {
+        double error = getContinuousError(((invertedPhase) ? -1 : 1) * (setpoint - input));
+        if (Math.abs(error) < errorThreshold) {
+            lastError = error;
+            return 0;
+        }
+
         double deltaTime = (SystemClock.uptimeMillis() - lastTime) / 1000.0;
 
         if (periodAppliesOnlyToDTerm || deltaTime >= period) {
-            double error = getContinuousError(((invertedPhase) ? -1 : 1) * (setpoint - input));
+            double pComponent = 0, iComponent = 0, dComponent = 0;
 
-            double pComponent = kP * error;
+            pComponent = kP * error;
 
-            runningIntegral += error * deltaTime;
-            runningIntegral = Range.clip(runningIntegral, integralMin, integralMax);
-            double iComponent = kI * runningIntegral;
+            if (kI != 0) {
+                runningIntegral += error * deltaTime;
+                runningIntegral = Range.clip(runningIntegral, integralMin, integralMax);
+                iComponent = kI * runningIntegral;
+            }
 
-            double dComponent;
-            double dDeltaTime = (SystemClock.uptimeMillis() - lastDTime) / 1000.0;
-            if (!periodAppliesOnlyToDTerm || dDeltaTime >= period) {
-                double d = (error - lastError) / dDeltaTime;
-                dComponent = kD * d;
-                lastDTerm = dComponent;
-                lastDTime = SystemClock.uptimeMillis();
-            } else {
-                dComponent = lastDTerm;
+            if (kD != 0) {
+                double dDeltaTime = (SystemClock.uptimeMillis() - lastDTime) / 1000.0;
+                if (!periodAppliesOnlyToDTerm || dDeltaTime >= period) {
+                    double d = (error - lastError) / dDeltaTime;
+                    dComponent = kD * d;
+                    lastDTerm = dComponent;
+                    lastDTime = SystemClock.uptimeMillis();
+                } else {
+                    dComponent = lastDTerm;
+                }
             }
 
             double fComponent = kF;

@@ -1,6 +1,7 @@
 package org.ftc9974.thorcore.robot.drivetrains;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -17,7 +18,7 @@ public final class KiwiDrive implements HolonomicDrivetrain {
 
     @SuppressWarnings("WeakerAccess")
     @Hardware
-    public Motor wheel1, wheel2, wheel3;
+    public DcMotorEx wheel1, wheel2, wheel3;
 
     private NavSource navSource;
     private PIDF turningPidf;

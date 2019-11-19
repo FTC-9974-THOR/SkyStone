@@ -1,19 +1,23 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.meta.Realizer;
 import org.ftc9974.thorcore.meta.annotation.Hardware;
 import org.ftc9974.thorcore.robot.Motor;
+import org.ftc9974.thorcore.robot.StallDetector;
 
 public class FoundationClaw {
 
     private static final int EXTENDED_POSITION = -120;
 
     @Hardware
-    public Motor claw;
+    public DcMotorEx claw;
+
+    private StallDetector stallDetector;
 
     private PIDF pid;
     private boolean closedLoopEnabled;
@@ -34,7 +38,8 @@ public class FoundationClaw {
         pid.setPeriod(0.1);
         pid.setIfPeriodAppliesOnlyToDTerm(true);
         closedLoopEnabled = true;
-        claw.setStallThreshold(0.0001);
+
+        stallDetector = new StallDetector(claw, 0.0001);
     }
 
     // I could make these functions automatically switch the PIDF on and off,
@@ -74,7 +79,7 @@ public class FoundationClaw {
     }
 
     public boolean isStalled() {
-        return claw.isStalled();
+        return stallDetector.isStalled();
     }
 
     public void homeEncoder() {
