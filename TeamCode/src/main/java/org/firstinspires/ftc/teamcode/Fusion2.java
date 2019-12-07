@@ -6,6 +6,7 @@ import com.qualcomm.ftccommon.SoundPlayer;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.teamcode.beuler.AutonomousSensorManager;
 import org.ftc9974.thorcore.control.HolonomicDrivetrain;
@@ -34,7 +35,12 @@ public class Fusion2 {
 
 
     public Fusion2(HardwareMap hw, HolonomicDrivetrain drivetrain) {
-        imu = new IMUNavSource(hw);
+        try {
+            imu = new IMUNavSource(hw);
+        } catch (RuntimeException e) {
+            RobotLog.setGlobalErrorMsg(e, "Both IMUs have failed!");
+            throw e;
+        }
         asm = new AutonomousSensorManager(hw);
         rb = drivetrain;
         calculator = new MecanumEncoderCalculator(13.7 * 2.0, 96);
@@ -97,6 +103,14 @@ public class Fusion2 {
         // encoder values we are seeking.
         int[] targets = calculator.calculate(target);
 
+        double absMaxTarget = MathUtilities.absMax(targets);
+        double absMinTarget = MathUtilities.absMin(targets);
+
+        double[] merpWeights = new double[targets.length];
+        for (int i = 0; i < targets.length; i++) {
+            merpWeights[i] = targets[i] / absMaxTarget;
+        }
+
         // calculate the normalized version of the target vector.
         // a normalized vector is a vector with a magnitude of 1.
         // this vector is used us a drive input for the drivetrain.
@@ -138,7 +152,7 @@ public class Fusion2 {
 
             // end state logic: determine when we are "at target"
             // the current implementation defines "at target" as:
-            // -- The smallest error is less than 50
+            // -- The largest error is less than 50
             // ~ or ~
             // -- Average progress is greater than or equal to 1
             if (MathUtilities.min(errors) < 50 || averageProgress >= 1) {
@@ -158,7 +172,7 @@ public class Fusion2 {
 
             // motion profile variables
             double effectiveSpeed = speed;             // speed the robot starts at
-            double nominalSpeed = 0.1;      // speed to stop at. this should be
+            double nominalSpeed = 0.2;      // speed to stop at. this should be
                                             // the slowest the robot can go
                                             // without the drive motors stalling.
             double slowdownPoint = 300;     // distance at which to start slowing down.
@@ -297,8 +311,8 @@ public class Fusion2 {
                 break;
             }
 
-            double speed = 0.7;
-            if (!Double.isNaN(distance)) {
+            double speed = 1;
+            if (!Double.isNaN(distance) || getASM().getUltrasonicDistance() < 200) {
                 speed = 0.4;
             }
             rb.drive(0, speed, headingPid.update());
@@ -367,6 +381,10 @@ public class Fusion2 {
     }
 
     public void driveToWallDistance(LinearOpMode opMode, double target, Runnable whileWaiting) {
+        driveToWallDistance(opMode, target, whileWaiting, 0.4);
+    }
+
+    public void driveToWallDistance(LinearOpMode opMode, double target, Runnable whileWaiting, double speed) {
         double approachDirection = (asm.getUltrasonicDistance() > target) ? 1 : -1;
         while (!opMode.isStopRequested()) {
             double distance = target - asm.getUltrasonicDistance();
@@ -388,16 +406,16 @@ public class Fusion2 {
                 break;
             }
 
-            double speed = 0.4 * approachDirection;
+            double effectiveSpeed = speed * approachDirection;
             double nominalSpeed = 0.2;
             double slowdownPoint = 10;
             if (Math.abs(distance) < slowdownPoint) {
-                speed = MathUtilities.map(distance, slowdownPoint, 0, speed, Math.copySign(nominalSpeed, speed));
-                if (Math.abs(speed) < nominalSpeed) {
-                    speed = Math.copySign(nominalSpeed, speed);
+                effectiveSpeed = MathUtilities.map(distance, slowdownPoint, 0, effectiveSpeed, Math.copySign(nominalSpeed, effectiveSpeed));
+                if (Math.abs(effectiveSpeed) < nominalSpeed) {
+                    effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
                 }
             }
-            rb.drive(0, speed, headingPid.update());
+            rb.drive(0, effectiveSpeed, headingPid.update());
         }
         rb.drive(0, 0, 0);
     }

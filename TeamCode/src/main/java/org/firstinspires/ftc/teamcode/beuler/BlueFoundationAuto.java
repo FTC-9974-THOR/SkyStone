@@ -9,8 +9,8 @@ import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.CompositeFunction;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
-@Autonomous(name = "Blue Foundation Auto", group = "Foundation")
-public class RedFoundationAuto extends LinearOpMode {
+@Autonomous(name = "Red Foundation Auto", group = "Foundation")
+public class BlueFoundationAuto extends LinearOpMode {
 
     private MecanumDrive rb;
     private Arm arm;
@@ -73,7 +73,7 @@ public class RedFoundationAuto extends LinearOpMode {
         arm.setClosedLoopEnabled(true);
 
         // strafe right
-        fusion2.driveToRightDistance(this, 35, this::update);
+        fusion2.driveToLeftDistance(this, 35, this::update);
         if (isStopRequested()) {
             return;
         }
@@ -92,7 +92,7 @@ public class RedFoundationAuto extends LinearOpMode {
 
         arm.release();
 
-        TimingUtilities.sleep(this, 1.5, this::update, null);
+        TimingUtilities.sleep(this, 0.5, this::update, null);
         if (isStopRequested()) return;
 
         arm.setTargetPosition(3.2);
@@ -108,7 +108,7 @@ public class RedFoundationAuto extends LinearOpMode {
         TimingUtilities.sleep(this, 6, this::update, null);
         if (isStopRequested()) return;
 
-        fusion2.drive(this,  new Vector2(-930, 0), this::update, 0.7);
+        fusion2.drive(this,  new Vector2(930, 0), this::update, 0.7);
         if (isStopRequested()) return;
 
         fusion2.drive(this, new Vector2(0, -350), this::update, 0.7);
@@ -117,7 +117,7 @@ public class RedFoundationAuto extends LinearOpMode {
         TimingUtilities.sleep(this, 0.5, this::update, null);
         if (isStopRequested()) return;
 
-        fusion2.turnToHeading(this, -0.5 * Math.PI, this::update);
+        fusion2.turnToHeading(this, 0.5 * Math.PI, this::update);
         if (isStopRequested()) return;
 
         rb.drive(0, 0.5, 0);
@@ -128,7 +128,7 @@ public class RedFoundationAuto extends LinearOpMode {
         TimingUtilities.sleep(this, 0.5, this::update, null);
         if (isStopRequested()) return;
 
-        fusion2.drive(this, new Vector2(35, 0), this::update, 0.5);
+        fusion2.drive(this, new Vector2(-35, 0), this::update, 0.5);
         if (isStopRequested()) return;
 
         arm.setTargetPosition(0.97);

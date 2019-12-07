@@ -12,8 +12,7 @@ import org.ftc9974.thorcore.util.MathUtilities;
 public class AutonomousSensorManager {
 
     @Hardware
-    public ColorSensor tapeSensor,
-                       skystoneSensor;
+    public ColorSensor tapeSensor;
 
     @Hardware
     public DistanceSensor leftDistance,
@@ -95,9 +94,5 @@ public class AutonomousSensorManager {
 
     public double getUltrasonicDistance() {
         return ultrasonic.getDistance(DistanceUnit.MM);
-    }
-
-    public boolean isSkystone() {
-        return MathUtilities.sum(skystoneSensor.red(), skystoneSensor.green(), skystoneSensor.blue()) < 10;
     }
 }

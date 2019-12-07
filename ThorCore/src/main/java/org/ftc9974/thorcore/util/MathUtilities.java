@@ -20,14 +20,6 @@ public final class MathUtilities {
 
     private MathUtilities() {}
 
-    public static double sum(double... doubles) {
-        double sum = 0;
-        for (double aDouble : doubles) {
-            sum += aDouble;
-        }
-        return sum;
-    }
-
     public static byte min(byte... bytes) {
         Arrays.sort(bytes);
         return bytes[0];
@@ -98,6 +90,58 @@ public final class MathUtilities {
     public static double max(double... doubles) {
         Arrays.sort(doubles);
         return doubles[doubles.length - 1];
+    }
+
+    public static double sum(double... doubles) {
+        double sum = 0;
+        for (double aDouble : doubles) {
+            sum += aDouble;
+        }
+        return sum;
+    }
+
+    public static int absMin(int... ints) {
+        int ret = Integer.MAX_VALUE;
+        for (int possibleMin : ints) {
+            int absPossibleMin = Math.abs(possibleMin);
+            if (absPossibleMin < ret) {
+                ret = absPossibleMin;
+            }
+        }
+        return ret;
+    }
+
+    public static double absMin(double... doubles) {
+        double ret = Double.POSITIVE_INFINITY;
+        for (double possibleMin : doubles) {
+            double absPossibleMin = Math.abs(possibleMin);
+            if (absPossibleMin < ret) {
+                ret = absPossibleMin;
+            }
+        }
+        return ret;
+    }
+
+    public static int absMax(int... ints) {
+        int ret = -1;
+        for (int possibleMax : ints) {
+            int absPossibleMax = Math.abs(possibleMax);
+            if (absPossibleMax > ret) {
+                ret = absPossibleMax;
+            }
+        }
+        return ret;
+    }
+
+    public static double absMax(double... doubles) {
+        double ret = -1;
+        for (double possibleMax : doubles) {
+            double absPossibleMax = Math.abs(possibleMax);
+            if (absPossibleMax > ret) {
+                ret = absPossibleMax;
+            }
+        }
+        return ret;
     }
 
     /**

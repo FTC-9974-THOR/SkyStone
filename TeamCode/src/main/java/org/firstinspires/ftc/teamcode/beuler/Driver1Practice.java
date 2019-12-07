@@ -7,19 +7,18 @@ import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 import org.ftc9974.thorcore.control.navigation.NavSource;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
+import org.ftc9974.thorcore.util.TimingUtilities;
 
-@TeleOp(name = "Beuler Tele Op")
-public class BeulerTeleOp extends OpMode {
+@TeleOp(name = "Driver 1 Practice")
+public class Driver1Practice extends OpMode {
 
     private MecanumDrive rb;
     private Arm arm;
     private Intake intake;
     private FoundationClaw foundationClaw;
+    private AutonomousSensorManager asm;
 
-    private boolean lastShoulderInput;
-    private boolean armRTP;
-    private boolean maxDetectionActive;
-    private double lastError;
+    private boolean intaking, outtaking;
 
     private NavSource navSource;
     private PIDF headingPid;
@@ -35,6 +34,7 @@ public class BeulerTeleOp extends OpMode {
         arm = new Arm(hardwareMap);
         intake = new Intake(hardwareMap);
         foundationClaw = new FoundationClaw(hardwareMap);
+        asm = new AutonomousSensorManager(hardwareMap);
 
         arm.setTargetPosition(arm.getArmPosition());
         arm.holdCapstone();
@@ -45,6 +45,10 @@ public class BeulerTeleOp extends OpMode {
         headingPid.setAtTargetThreshold(Math.toRadians(1));
         headingPid.setContinuityRange(-Math.PI, Math.PI);
         headingPid.setContinuous(true);
+
+        arm.release();
+        arm.setTargetPosition(3.0);
+        arm.setClosedLoopEnabled(true);
     }
 
     @Override
@@ -83,9 +87,26 @@ public class BeulerTeleOp extends OpMode {
         telemetry.addData("Drive System Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
 
-        if (gamepad2.a && gamepad2.b && gamepad2.x && gamepad2.y) {
-            arm.releaseCapstone();
-        } else if (gamepad2.a) {
+        if (gamepad1.left_bumper) {
+            intaking = true;
+            outtaking = false;
+            intake.intake(1);
+        } else if (gamepad1.right_bumper) {
+            intaking = false;
+            outtaking = true;
+            intake.outtake(1);
+        }
+
+        boolean stonePresent = asm.isStonePresent();
+        if (intaking && stonePresent) {
+            intaking = false;
+            TimingUtilities.runAfterDelay(intake::stop, 500);
+        } else if (outtaking && !stonePresent) {
+            outtaking = false;
+            TimingUtilities.runAfterDelay(intake::stop, 500);
+        }
+
+        /*if (gamepad2.a) {
             arm.grab();
         } else if (gamepad2.b) {
             arm.release();
@@ -94,8 +115,14 @@ public class BeulerTeleOp extends OpMode {
         telemetry.addData("Manipulator Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
 
+        if (gamepad2.x) {
+            arm.holdCapstone();
+        } else if (gamepad2.y) {
+            arm.configureForWide();
+        }
+
         telemetry.addData("Yaw Time", (System.nanoTime() - lastTimeStamp) / 1000000);
-        lastTimeStamp = System.nanoTime();
+        lastTimeStamp = System.nanoTime();*/
 
         if (gamepad1.x) {
             foundationClaw.extend();
@@ -106,7 +133,7 @@ public class BeulerTeleOp extends OpMode {
         telemetry.addData("Claw Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
 
-        if (gamepad2.left_trigger > 0.8) {
+        /*if (gamepad2.left_trigger > 0.8) {
             intake.intake(1);
         } else if (gamepad2.right_trigger > 0.8) {
             intake.outtake(1);
@@ -117,13 +144,15 @@ public class BeulerTeleOp extends OpMode {
         telemetry.addData("Intake Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
 
-        /*boolean currentInput = gamepad2.dpad_up || gamepad2.dpad_down;
+        boolean currentInput = gamepad2.dpad_up || gamepad2.dpad_down;
 
         if (gamepad2.right_bumper) {
             armRTP = true;
+            arm.holdCapstone();
             arm.setTargetPosition(1.39);
         } else if (gamepad2.left_bumper) {
             armRTP = true;
+            arm.holdCapstone();
             arm.setTargetPosition(2.97);
         }
 
@@ -138,7 +167,7 @@ public class BeulerTeleOp extends OpMode {
                 // let go
                 arm.setTargetPosition(arm.getArmPosition());
                 maxDetectionActive = true;
-            } else if (lastShoulderInput) {*/
+            } else if (lastShoulderInput) {
                 arm.setClosedLoopEnabled(false);
                 if (gamepad2.dpad_up) {
                     arm.setShoulderPower(1);
@@ -148,7 +177,7 @@ public class BeulerTeleOp extends OpMode {
                     // just in case
                     arm.setShoulderPower(0);
                 }
-            /*} else if (maxDetectionActive) {
+            } else if (maxDetectionActive) {
                 double error = Math.abs(arm.lastPIDError());
                 if (error < lastError) {
                     arm.setTargetPosition(arm.getArmPosition());
@@ -158,10 +187,11 @@ public class BeulerTeleOp extends OpMode {
             }
         }
         lastShoulderInput = currentInput;
-        lastError = Math.abs(arm.lastPIDError());*/
+        lastError = Math.abs(arm.lastPIDError());
 
         telemetry.addData("Shoulder Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
+         */
 
         arm.update();
         foundationClaw.update();

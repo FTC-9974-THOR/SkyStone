@@ -6,8 +6,8 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
-@Autonomous(name = "Park")
-public class ParkAuto extends LinearOpMode {
+@Autonomous(name = "Park (Close; Delay)")
+public class ParkAutoCloseDelay extends LinearOpMode {
 
     private enum Side {
         LEFT,
@@ -32,13 +32,16 @@ public class ParkAuto extends LinearOpMode {
             telemetry.update();
         }
 
+        TimingUtilities.sleep(this, 23, null, null);
+        if (isStopRequested()) return;
+
         if (side == Side.LEFT) {
             rb.drive(0.5, 0, 0);
         } else {
             rb.drive(-0.5, 0, 0);
         }
 
-        TimingUtilities.sleep(this, 0.5, null, null);
+        TimingUtilities.sleep(this, 0.25, null, null);
         rb.drive(0, 0, 0);
         if (isStopRequested()) return;
 

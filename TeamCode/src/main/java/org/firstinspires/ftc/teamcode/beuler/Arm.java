@@ -18,10 +18,9 @@ import org.ftc9974.thorcore.util.MathUtilities;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 3.27,
+    private static final double HIGH_SHOULDER_LIMIT = 3.3,
                                 MID_SHOULDER = 1.39,
-                                LOW_SHOULDER_LIMIT = 0.493,
-                                SAFE_TO_YAW = 0.6,
+                                LOW_SHOULDER_LIMIT = 0.378,
                                 JAW0_OPEN_POS = MathUtilities.map(1910, 500, 2500, 0, 1),
                                 JAW0_PUSH_POS = MathUtilities.map(938, 500, 2500, 0, 1),
                                 JAW0_CLOSED_POS = MathUtilities.map(700, 500, 2500, 0, 1),
@@ -35,7 +34,7 @@ public class Arm {
     public DcMotorEx shoulder;
 
     @Hardware
-    public ServoImplEx yaw, jaw0, jaw1;
+    public ServoImplEx capstone, jaw0, jaw1;
 
     @Hardware
     public AnalogInput pot;
@@ -44,7 +43,6 @@ public class Arm {
     private boolean closedLoopEnabled;
 
     private boolean grabberOpen;
-    private boolean yawState;
 
     public double lastShoulderPower;
     private long lastShoulderUpdateTime;
@@ -59,9 +57,9 @@ public class Arm {
                 500, // open
                 2500  // closed
         ));
-        yaw.setPwmRange(new PwmControl.PwmRange(
-                1085, // wide
-                1955  // tall
+        capstone.setPwmRange(new PwmControl.PwmRange(
+                950, // drop
+                1700  // hold
         ));
 
         shoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -84,14 +82,10 @@ public class Arm {
     void release() {
         grabberOpen = true;
         jaw0.setPosition(JAW0_OPEN_POS);
-        if (yawState) {
-            configureForPush();
+        if (getArmPosition() < MID_SHOULDER) {
+            jaw1.setPosition(JAW1_OPEN_POS);
         } else {
-            if (getArmPosition() < MID_SHOULDER) {
-                jaw1.setPosition(JAW1_OPEN_POS);
-            } else {
-                jaw1.setPosition(JAW1_READY_POS);
-            }
+            jaw1.setPosition(JAW1_READY_POS);
         }
     }
 
@@ -108,31 +102,27 @@ public class Arm {
         jaw1.setPosition(position);
     }
 
-    void configureForWide() {
-        if (safeToYaw()) {
-            yawState = true;
-            yaw.setPosition(0);
-        }
+    void holdCapstone() {
+        capstone.setPosition(1);
     }
 
-    boolean safeToYaw() {
-        return getArmPosition() < SAFE_TO_YAW;
+    void releaseCapstone() {
+        capstone.setPosition(0);
     }
 
-    void configureForTall() {
-        yawState = false;
-        yaw.setPosition(1);
+    void stopShoulder() {
+        shoulder.setPower(0);
+        lastShoulderPower = 0;
     }
 
     void setShoulderPower(double power) {
-        if ((power < 0 && getArmPosition() < MID_SHOULDER) || (power > 0 && getArmPosition() > MID_SHOULDER)) {
-            power = MathUtilities.constrain(power, -0.5, 0.5);
-        }
-        double motorPower = power;
+        //if ((power < 0 && getArmPosition() < MID_SHOULDER) || (power > 0 && getArmPosition() > MID_SHOULDER)) {
+        //    power = MathUtilities.constrain(power, -0.5, 0.5);
+        //}
 
         long now = SystemClock.uptimeMillis();
         double deltaTime = (now - lastShoulderUpdateTime) / 1000.0;
-        double input = lastShoulderPower - motorPower;
+        double input = lastShoulderPower - power;
         double rampFactor = deltaTime / RAMP_RATE;
         if (Math.abs(input) < rampFactor) {
             rampFactor = input;
@@ -142,9 +132,7 @@ public class Arm {
         lastShoulderUpdateTime = now;
 
         if (getArmPosition() < LOW_SHOULDER_LIMIT) {
-            lastShoulderPower = Math.max(0, lastShoulderPower);
-        } else if (yawState && getArmPosition() > SAFE_TO_YAW) {
-            lastShoulderPower = Math.min(0, lastShoulderPower);
+            lastShoulderPower = Math.max(0.2, lastShoulderPower);
         } else if (getArmPosition() > HIGH_SHOULDER_LIMIT) {
             lastShoulderPower = Math.min(0, lastShoulderPower);
         }
@@ -184,7 +172,7 @@ public class Arm {
         if (closedLoopEnabled) {
             setShoulderPower(shoulderPid.update(getArmPosition()));
         }
-        if (grabberOpen && !yawState) {
+        if (grabberOpen) {
             if (getArmPosition() < MID_SHOULDER) {
                 jaw1.setPosition(JAW1_OPEN_POS);
             } else {

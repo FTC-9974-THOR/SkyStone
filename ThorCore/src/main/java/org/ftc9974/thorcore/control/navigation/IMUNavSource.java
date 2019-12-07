@@ -55,7 +55,6 @@ public final class IMUNavSource implements NavSource, BNO055IMU.AccelerationInte
         parameters.calibrationDataFile = calibrationFile;
         if (!imu.initialize(parameters)) {
             RobotLog.e("Error initializing IMU! Error: " + imu.getSystemError().toString());
-        } else {
             imu = hardwareMap.get(BNO055IMU.class, "imu 0");
             isFallback = true;
             if (!imu.initialize(parameters)) {

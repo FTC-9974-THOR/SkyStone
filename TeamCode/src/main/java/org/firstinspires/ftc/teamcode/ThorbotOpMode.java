@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 import org.ftc9974.thorcore.robot.drivetrains.KiwiDrive;
 
-@Disabled
+//@Disabled
 @TeleOp(name = "Thorbot")
 public class ThorbotOpMode extends OpMode {
 
@@ -20,6 +20,7 @@ public class ThorbotOpMode extends OpMode {
         navSource = new IMUNavSource(hardwareMap);
         rb = new KiwiDrive(hardwareMap, new PIDFCoefficients(0.1, 0, 0, 0), navSource, (byte) 0b000);
         rb.setFieldRelative(false);
+        rb .setTurningPidfActive(true);
     }
 
     @Override

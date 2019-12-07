@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.beuler;
 import android.os.SystemClock;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
@@ -21,6 +22,7 @@ import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
 @Autonomous(name = "Line Up on Stone")
+@Disabled
 public class LineUpAuto extends LinearOpMode {
 
     private MecanumDrive rb;
