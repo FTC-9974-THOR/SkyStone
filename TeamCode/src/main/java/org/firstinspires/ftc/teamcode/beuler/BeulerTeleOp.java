@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import android.os.SystemClock;
+
+import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -16,6 +19,8 @@ public class BeulerTeleOp extends OpMode {
     private Intake intake;
     private FoundationClaw foundationClaw;
 
+    private Blinkin blinkin;
+
     private boolean lastShoulderInput;
     private boolean armRTP;
     private boolean maxDetectionActive;
@@ -27,6 +32,7 @@ public class BeulerTeleOp extends OpMode {
     private boolean turnMaxDetectionActive;
     private double lastTurnError;
     private long lastTimeStamp;
+    private long blinkinTimeStamp;
 
     @Override
     public void init() {
@@ -35,6 +41,8 @@ public class BeulerTeleOp extends OpMode {
         arm = new Arm(hardwareMap);
         intake = new Intake(hardwareMap);
         foundationClaw = new FoundationClaw(hardwareMap);
+
+        blinkin = new Blinkin(hardwareMap);
 
         arm.setTargetPosition(arm.getArmPosition());
         arm.holdCapstone();
@@ -83,12 +91,16 @@ public class BeulerTeleOp extends OpMode {
         telemetry.addData("Drive System Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();
 
-        if (gamepad2.a && gamepad2.b && gamepad2.x && gamepad2.y) {
+        if (gamepad2.y) {
             arm.releaseCapstone();
+            blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.BLUE);
+            blinkinTimeStamp = SystemClock.uptimeMillis();
         } else if (gamepad2.a) {
             arm.grab();
         } else if (gamepad2.b) {
             arm.release();
+            blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.GOLD);
+            blinkinTimeStamp = SystemClock.uptimeMillis();
         }
 
         telemetry.addData("Manipulator Time", (System.nanoTime() - lastTimeStamp) / 1000000);
@@ -108,10 +120,15 @@ public class BeulerTeleOp extends OpMode {
 
         if (gamepad2.left_trigger > 0.8) {
             intake.intake(1);
+            blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
         } else if (gamepad2.right_trigger > 0.8) {
             intake.outtake(1);
+            blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.RED);
         } else {
             intake.stop();
+            if (SystemClock.uptimeMillis() - blinkinTimeStamp > 1000) {
+                blinkin.defaultPattern();
+            }
         }
 
         telemetry.addData("Intake Time", (System.nanoTime() - lastTimeStamp) / 1000000);

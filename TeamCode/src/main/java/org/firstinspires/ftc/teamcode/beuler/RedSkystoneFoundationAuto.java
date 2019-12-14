@@ -21,7 +21,7 @@ import org.ftc9974.thorcore.util.TimingUtilities;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Autonomous(name = "Red SkyStone & Foundation", group = "SkyStone")
+@Autonomous(name = "Red SkyStone & Foundation", group = "SkyStone 2")
 public class RedSkystoneFoundationAuto extends LinearOpMode {
 
     private enum StonePosition {

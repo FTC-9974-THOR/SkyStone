@@ -131,13 +131,16 @@ public class RedFoundationAuto extends LinearOpMode {
         fusion2.drive(this, new Vector2(35, 0), this::update, 0.5);
         if (isStopRequested()) return;
 
-        arm.setTargetPosition(0.97);
+        arm.setTargetPosition(3.2);
         arm.release();
 
         TimingUtilities.sleep(this, 0.5, this::update, null);
         if (isStopRequested()) return;
 
-        fusion2.drive(this, new Vector2(0, -200), this::update, 0.5);
+        //fusion2.drive(this, new Vector2(0, -200), this::update, 0.5);
+        //if (isStopRequested()) return;
+
+        fusion2.driveBackwardsToTape(this, this::update);
         if (isStopRequested()) return;
 
         //TimingUtilities.blockUntil(this, arm::shoulderAtTarget, this::update, null);

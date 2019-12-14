@@ -18,7 +18,7 @@ import org.ftc9974.thorcore.util.MathUtilities;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 3.3,
+    private static final double HIGH_SHOULDER_LIMIT = 3.28,
                                 MID_SHOULDER = 1.39,
                                 LOW_SHOULDER_LIMIT = 0.378,
                                 JAW0_OPEN_POS = MathUtilities.map(1910, 500, 2500, 0, 1),

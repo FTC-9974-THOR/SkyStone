@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -36,6 +37,8 @@ public class RedSkystoneAuto extends LinearOpMode {
     private Intake intake;
     private ElapsedTime timer;
 
+    private Blinkin blinkin;
+
     private StonePosition stoneLocation = StonePosition.RIGHT;
 
     @Override
@@ -68,6 +71,8 @@ public class RedSkystoneAuto extends LinearOpMode {
 
         timer = new ElapsedTime();
 
+        blinkin = new Blinkin(hardwareMap);
+
         while (!isStopRequested() && !isStarted()) {
             telemetry.addLine("Ready.");
             telemetry.update();
@@ -78,6 +83,7 @@ public class RedSkystoneAuto extends LinearOpMode {
         timer.reset();
 
         arm.holdCapstone();
+        arm.release();
 
         claw.setClosedLoopEnabled(false);
         claw.setPower(0.3);
@@ -91,6 +97,8 @@ public class RedSkystoneAuto extends LinearOpMode {
 
         arm.setTargetPosition(3);
         arm.setClosedLoopEnabled(true);
+
+        blinkin.lamp();
 
         fusion2.drive(this, new Vector2(0, -350), this::update, 0.4);
         if (isStopRequested()) return;
@@ -117,8 +125,11 @@ public class RedSkystoneAuto extends LinearOpMode {
             stoneOffset = -translation.get(0);
         }
 
+        blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_PARTY_PALETTE);
+
         fusion2.drive(this, new Vector2(0, -150), this::update, 0.7);
         if (isStopRequested()) return;
+
 
         double wallDistance = fusion2.getASM().getRightDistance();
 
@@ -208,7 +219,7 @@ public class RedSkystoneAuto extends LinearOpMode {
             intake.stop();
         }
 
-        fusion2.drive(this, new Vector2(-470, 0), this::update, 0.7);
+        fusion2.drive(this, new Vector2(-500, 0), this::update, 0.7);
         if (isStopRequested()) return;
 
         fusion2.drive(this, new Vector2(0, -300), this::update, 0.7);
