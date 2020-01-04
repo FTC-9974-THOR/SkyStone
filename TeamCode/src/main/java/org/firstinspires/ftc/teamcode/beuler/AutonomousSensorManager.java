@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -12,15 +13,16 @@ import org.ftc9974.thorcore.util.MathUtilities;
 public class AutonomousSensorManager {
 
     @Hardware
-    public ColorSensor tapeSensor;
+    public DistanceSensor leftLaser,
+                          rightLaser,
+                          frontLaser,
+                          backLaser;
 
     @Hardware
-    public DistanceSensor leftDistance,
-                          rightDistance,
-                          stoneSensor,
-                          wallSensor0,
-                          wallSensor1,
-                          ultrasonic;
+    public AnalogInput ultrasonic;
+
+    @Hardware
+    public ColorSensor tapeSensor;
 
     public AutonomousSensorManager(HardwareMap hw) {
         Realizer.realize(this, hw);
@@ -43,26 +45,26 @@ public class AutonomousSensorManager {
     }
 
     public boolean onTape() {
-        return getTapeSensorHSV()[1] > 0.3;
+        return getTapeSensorHSV()[1] > 0.28;
     }
 
     /**
-     * Get left distance, in cm
-     * @return distance, in cm
+     * Get left distance, in mm
+     * @return distance, in mm
      */
     public double getLeftDistance() {
-        return leftDistance.getDistance(DistanceUnit.CM);
+        return leftLaser.getDistance(DistanceUnit.MM);
     }
 
     /**
-     * Get right distance, in cm
-     * @return distance, in cm
+     * Get right distance, in mm
+     * @return distance, in mm
      */
     public double getRightDistance() {
-        return rightDistance.getDistance(DistanceUnit.CM);
+        return rightLaser.getDistance(DistanceUnit.MM);
     }
 
-    public double getStoneDistance() {
+    /*public double getStoneDistance() {
         return stoneSensor.getDistance(DistanceUnit.MM);
     }
 
@@ -82,6 +84,14 @@ public class AutonomousSensorManager {
         return wallSensor1.getDistance(DistanceUnit.MM);
     }
 
+    public double getWallLaser0Distance() {
+        return wallLaser0.getDistance(DistanceUnit.MM);
+    }
+
+    public double getWallLaser1Distance() {
+        return wallLaser1.getDistance(DistanceUnit.MM);
+    }
+
     public boolean isStonePresent() {
         double distance = stoneSensor.getDistance(DistanceUnit.MM);
         return !Double.isNaN(distance) && distance < 200;
@@ -90,9 +100,17 @@ public class AutonomousSensorManager {
     public boolean frontAtWall() {
         double distance = getWallDistance();
         return !Double.isNaN(distance) && distance < 75;
+    }*/
+
+    public double getFrontDistance() {
+        return frontLaser.getDistance(DistanceUnit.MM);
+    }
+
+    public double getBackDistance() {
+        return backLaser.getDistance(DistanceUnit.MM);
     }
 
     public double getUltrasonicDistance() {
-        return ultrasonic.getDistance(DistanceUnit.MM);
+        return 5 * 1024 * (ultrasonic.getVoltage() / 3.3);
     }
 }

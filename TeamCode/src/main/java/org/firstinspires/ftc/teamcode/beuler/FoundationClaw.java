@@ -3,6 +3,8 @@ package org.firstinspires.ftc.teamcode.beuler;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.PwmControl;
+import com.qualcomm.robotcore.hardware.ServoImplEx;
 
 import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.meta.Realizer;
@@ -12,84 +14,72 @@ import org.ftc9974.thorcore.robot.StallDetector;
 
 public class FoundationClaw {
 
-    private static final int EXTENDED_POSITION = -120;
-
     @Hardware
-    public DcMotorEx claw;
-
-    private StallDetector stallDetector;
-
-    private PIDF pid;
-    private boolean closedLoopEnabled;
+    public ServoImplEx claw0;
+    @Hardware
+    public ServoImplEx claw1;
 
     public FoundationClaw(HardwareMap hw) {
         Realizer.realize(this, hw);
-        claw.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        claw.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        pid = new PIDF(0.01, 0, 0, 0);
-        pid.setAtTargetThreshold(5);
-        pid.setNominalOutputForward(0.1);
-        pid.setNominalOutputReverse(-0.1);
-        pid.setPeakOutputForward(0.3);
-        pid.setPeakOutputReverse(-0.3);
-
-        pid.setSetpoint(0);
-        pid.setPeriod(0.1);
-        pid.setIfPeriodAppliesOnlyToDTerm(true);
-        closedLoopEnabled = true;
-
-        stallDetector = new StallDetector(claw, 0.0001);
+        claw0.setPwmRange(new PwmControl.PwmRange(1100, 2020));
+        claw1.setPwmRange(new PwmControl.PwmRange(1320, 1900));
     }
 
-    // I could make these functions automatically switch the PIDF on and off,
-    // but I prefer to make the functions do only what they say they do, and
-    // nothing more. It helps prevent confusion.
-
     public void extend() {
-        pid.setSetpoint(EXTENDED_POSITION);
+        claw0.setPosition(1);
+        claw1.setPosition(0);
     }
 
     public void retract() {
-        pid.setSetpoint(-40);
+        claw0.setPosition(0);
+        claw1.setPosition(1);
     }
 
+    public void ready() {
+        claw0.setPosition(0.3);
+        claw1.setPosition(0.7);
+    }
+
+    @Deprecated
     public void setTarget(int target) {
-        pid.setSetpoint(target);
+
     }
 
+    @Deprecated
     public boolean atTarget() {
-        return pid.atTarget();
+        return true;
     }
 
+    @Deprecated
     public int getCurrentPosition() {
-        return claw.getCurrentPosition();
+        return 0;
     }
 
+    @Deprecated
     public void setClosedLoopEnabled(boolean enabled) {
-        closedLoopEnabled = enabled;
+
     }
 
+    @Deprecated
     public boolean isClosedLoopEnabled() {
-        return closedLoopEnabled;
+        return true;
     }
 
+    @Deprecated
     public void setPower(double power) {
-        claw.setPower(power);
+
     }
 
+    @Deprecated
     public boolean isStalled() {
-        return stallDetector.isStalled();
+        return true;
     }
 
+    @Deprecated
     public void homeEncoder() {
-        claw.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        claw.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
     }
 
     public void update() {
-        if (closedLoopEnabled) {
-            claw.setPower(pid.update(getCurrentPosition()));
-        }
     }
 }

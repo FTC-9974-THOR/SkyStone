@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
-@Autonomous(name = "Park (Close)")
+@Autonomous(name = "Park (Close)", group = "D")
 public class ParkAutoClose extends LinearOpMode {
 
     private enum Side {

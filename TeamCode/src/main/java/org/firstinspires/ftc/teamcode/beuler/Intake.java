@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.ftc9974.thorcore.meta.Realizer;
@@ -14,6 +15,7 @@ public class Intake {
 
     public Intake(HardwareMap hw) {
         Realizer.realize(this, hw);
+        intake0.setDirection(DcMotorSimple.Direction.REVERSE);
     }
 
     public void intake(double speed) {

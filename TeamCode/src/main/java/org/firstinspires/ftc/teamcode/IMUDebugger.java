@@ -1,11 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 
 @TeleOp(name = "IMU Debugger")
+@Disabled
 public class IMUDebugger extends OpMode {
 
     private IMUNavSource imu;

@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -10,6 +11,7 @@ import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
 @TeleOp(name = "Driver 1 Practice")
+@Disabled
 public class Driver1Practice extends OpMode {
 
     private MecanumDrive rb;
@@ -36,7 +38,7 @@ public class Driver1Practice extends OpMode {
         foundationClaw = new FoundationClaw(hardwareMap);
         asm = new AutonomousSensorManager(hardwareMap);
 
-        arm.setTargetPosition(arm.getArmPosition());
+        arm.setArmTargetPosition(arm.getArmPosition());
         arm.holdCapstone();
 
         navSource = new IMUNavSource(hardwareMap);
@@ -47,8 +49,8 @@ public class Driver1Practice extends OpMode {
         headingPid.setContinuous(true);
 
         arm.release();
-        arm.setTargetPosition(3.0);
-        arm.setClosedLoopEnabled(true);
+        arm.setArmTargetPosition(3.0);
+        arm.setArmClosedLoopEnabled(true);
     }
 
     @Override
@@ -97,7 +99,8 @@ public class Driver1Practice extends OpMode {
             intake.outtake(1);
         }
 
-        boolean stonePresent = asm.isStonePresent();
+        // TODO: 1/2/20 Add stone sensor
+        boolean stonePresent = true;//asm.isStonePresent();
         if (intaking && stonePresent) {
             intaking = false;
             TimingUtilities.runAfterDelay(intake::stop, 500);
@@ -149,26 +152,26 @@ public class Driver1Practice extends OpMode {
         if (gamepad2.right_bumper) {
             armRTP = true;
             arm.holdCapstone();
-            arm.setTargetPosition(1.39);
+            arm.setArmTargetPosition(1.39);
         } else if (gamepad2.left_bumper) {
             armRTP = true;
             arm.holdCapstone();
-            arm.setTargetPosition(2.97);
+            arm.setArmTargetPosition(2.97);
         }
 
         if (armRTP) {
-            arm.setClosedLoopEnabled(true);
+            arm.setArmClosedLoopEnabled(true);
             if (currentInput) {
                 armRTP = false;
             }
         } else {
-            arm.setClosedLoopEnabled(!currentInput);
+            arm.setArmClosedLoopEnabled(!currentInput);
             if (lastShoulderInput && !currentInput) {
                 // let go
-                arm.setTargetPosition(arm.getArmPosition());
+                arm.setArmTargetPosition(arm.getArmPosition());
                 maxDetectionActive = true;
             } else if (lastShoulderInput) {
-                arm.setClosedLoopEnabled(false);
+                arm.setArmClosedLoopEnabled(false);
                 if (gamepad2.dpad_up) {
                     arm.setShoulderPower(1);
                 } else if (gamepad2.dpad_down) {
@@ -178,16 +181,16 @@ public class Driver1Practice extends OpMode {
                     arm.setShoulderPower(0);
                 }
             } else if (maxDetectionActive) {
-                double error = Math.abs(arm.lastPIDError());
+                double error = Math.abs(arm.lastArmPIDError());
                 if (error < lastError) {
-                    arm.setTargetPosition(arm.getArmPosition());
+                    arm.setArmTargetPosition(arm.getArmPosition());
                     arm.setShoulderPower(0);
                     maxDetectionActive = false;
                 }
             }
         }
         lastShoulderInput = currentInput;
-        lastError = Math.abs(arm.lastPIDError());
+        lastError = Math.abs(arm.lastArmPIDError());
 
         telemetry.addData("Shoulder Time", (System.nanoTime() - lastTimeStamp) / 1000000);
         lastTimeStamp = System.nanoTime();

@@ -232,4 +232,8 @@ public final class VuMarkNavSource implements NavSource {
     /*public Vector2 getAbsoluteStoneLocation() {
         return getLocation().add(getRelativeStoneLocation());
     }*/
+
+    public VuforiaLocalizer getVuforiaLocalizer() {
+        return vuforia;
+    }
 }

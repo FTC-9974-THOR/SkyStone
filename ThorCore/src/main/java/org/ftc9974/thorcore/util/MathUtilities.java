@@ -21,75 +21,145 @@ public final class MathUtilities {
     private MathUtilities() {}
 
     public static byte min(byte... bytes) {
-        Arrays.sort(bytes);
-        return bytes[0];
+        byte min = Byte.MAX_VALUE;
+        for (byte b : bytes) {
+            if (b < min) {
+                min = b;
+            }
+        }
+        return min;
     }
 
     public static char min(char... chars) {
         // I actually can't think of a time this would be useful, but you never know
-        Arrays.sort(chars);
-        return chars[0];
+        char min = 65535;
+        for (char c : chars) {
+            if (c < min) {
+                min = c;
+            }
+        }
+        return min;
     }
 
     public static short min(short... shorts) {
-        Arrays.sort(shorts);
-        return shorts[0];
+        short min = Short.MAX_VALUE;
+        for (short s : shorts) {
+            if (s < min) {
+                min = s;
+            }
+        }
+        return min;
     }
 
     public static int min(int... ints) {
-        Arrays.sort(ints);
-        return ints[0];
+        int min = Integer.MAX_VALUE;
+        for (int i : ints) {
+            if (i < min) {
+                min = i;
+            }
+        }
+        return min;
     }
 
     public static long min(long... longs) {
-        Arrays.sort(longs);
-        return longs[0];
+        long min = Long.MAX_VALUE;
+        for (long l : longs) {
+            if (l < min) {
+                min = l;
+            }
+        }
+        return min;
     }
 
     public static float min(float... floats) {
-        Arrays.sort(floats);
-        return floats[0];
+        float min = Float.MAX_VALUE;
+        for (float f : floats) {
+            if (f < min) {
+                min = f;
+            }
+        }
+        return min;
     }
 
     public static double min(double... doubles) {
-        Arrays.sort(doubles);
-        return doubles[0];
+        double min = Double.MAX_VALUE;
+        for (double d : doubles) {
+            if (d < min) {
+                min = d;
+            }
+        }
+        return min;
     }
 
     public static byte max(byte... bytes) {
-        Arrays.sort(bytes);
-        return bytes[bytes.length - 1];
+        byte max = Byte.MIN_VALUE;
+        for (byte b : bytes) {
+            if (b > max) {
+                max = b;
+            }
+        }
+        return max;
     }
 
     public static char max(char... chars) {
         // I actually can't think of a time this would be useful, but you never know
-        Arrays.sort(chars);
-        return chars[chars.length - 1];
+        char max = 0;
+        for (char c : chars) {
+            if (c > max) {
+                max = c;
+            }
+        }
+        return max;
     }
 
     public static short max(short... shorts) {
-        Arrays.sort(shorts);
-        return shorts[shorts.length - 1];
+        short max = Short.MIN_VALUE;
+        for (short s : shorts) {
+            if (s > max) {
+                max = s;
+            }
+        }
+        return max;
     }
 
     public static int max(int... ints) {
-        Arrays.sort(ints);
-        return ints[ints.length - 1];
+        int max = Integer.MIN_VALUE;
+        for (int i : ints) {
+            if (i > max) {
+                max = i;
+            }
+        }
+        return max;
     }
 
     public static long max(long... longs) {
-        Arrays.sort(longs);
-        return longs[longs.length - 1];
+        long max = Long.MIN_VALUE;
+        for (long l : longs) {
+            if (l > max) {
+                max = l;
+            }
+        }
+        return max;
     }
 
     public static float max(float... floats) {
-        Arrays.sort(floats);
-        return floats[floats.length - 1];
+        float max = -Float.MAX_VALUE;
+        for (float f : floats) {
+            if (f > max) {
+                max = f;
+            }
+        }
+        return max;
     }
 
     public static double max(double... doubles) {
-        Arrays.sort(doubles);
-        return doubles[doubles.length - 1];
+        double max = -Double.MAX_VALUE;
+        for (double d : doubles) {
+            if (d > max) {
+                max = d;
+            }
+        }
+        return max;
     }
 
     public static double sum(double... doubles) {
@@ -145,7 +215,7 @@ public final class MathUtilities {
     }
 
     /**
-     * Calculate the definite integral of a function. Works best with doubles.
+     * Calculates the Riemann sum of a function. Works best with doubles.
      * It may be a rather expensive operation, so use it sparingly.
      * @param function function to integrate
      * @param lowBound low bound of the integral

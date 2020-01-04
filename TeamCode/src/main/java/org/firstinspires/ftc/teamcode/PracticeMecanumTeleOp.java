@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -9,6 +10,7 @@ import org.ftc9974.thorcore.meta.annotation.Hardware;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 
 @TeleOp(name = "Practice Mecanum", group = "Practice")
+@Disabled
 public class PracticeMecanumTeleOp extends OpMode {
 
     private MecanumDrive rb;

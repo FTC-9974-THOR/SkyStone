@@ -9,16 +9,16 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 
 import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.meta.Realizer;
 import org.ftc9974.thorcore.meta.annotation.Hardware;
-import org.ftc9974.thorcore.robot.Motor;
 import org.ftc9974.thorcore.util.MathUtilities;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 3.28,
+    private static final double HIGH_SHOULDER_LIMIT = 3.22,
                                 MID_SHOULDER = 1.39,
                                 LOW_SHOULDER_LIMIT = 0.378,
                                 JAW0_OPEN_POS = MathUtilities.map(1910, 500, 2500, 0, 1),
@@ -28,10 +28,11 @@ public class Arm {
                                 JAW1_READY_POS = MathUtilities.map(1790, 500, 2500, 0, 1),
                                 JAW1_PUSH_POS = MathUtilities.map(1698, 500, 2500, 0, 1),
                                 JAW1_CLOSED_POS = MathUtilities.map(1870, 500, 2500, 0, 1),
-                                RAMP_RATE = 0.5; // seconds to full power
+                                RAMP_RATE = 0.5, // seconds to full power
+                                LIFT_TOP_EXTENT = 9711;
 
     @Hardware
-    public DcMotorEx shoulder;
+    public DcMotorEx shoulder, lift;
 
     @Hardware
     public ServoImplEx capstone, jaw0, jaw1;
@@ -39,13 +40,22 @@ public class Arm {
     @Hardware
     public AnalogInput pot;
 
+    @Hardware
+    public TouchSensor homingSwitch;
+
     private PIDF shoulderPid;
-    private boolean closedLoopEnabled;
+    private boolean armClosedLoopEnabled;
+
+    private PIDF liftPid;
+    private boolean liftClosedLoopEnabled;
 
     private boolean grabberOpen;
 
-    public double lastShoulderPower;
+    private double lastShoulderPower;
     private long lastShoulderUpdateTime;
+
+    private boolean liftHomed, lastHomingSwitchReading;
+    private int liftEncoderOffset;
 
     public Arm(HardwareMap hw) {
         Realizer.realize(this, hw);
@@ -71,6 +81,16 @@ public class Arm {
         shoulderPid.setPeakOutputForward(1);
         shoulderPid.setPeakOutputReverse(-1);
         shoulderPid.setAtTargetThreshold(0.05);
+
+        lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        lift.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        liftPid = new PIDF(1, 0, 0, 0);
+        shoulderPid.setNominalOutputReverse(0);
+        shoulderPid.setNominalOutputForward(0.1);
+        shoulderPid.setPeakOutputForward(1);
+        shoulderPid.setPeakOutputReverse(-1);
+        shoulderPid.setAtTargetThreshold(15);
     }
 
     void grab() {
@@ -121,14 +141,18 @@ public class Arm {
         //}
 
         long now = SystemClock.uptimeMillis();
-        double deltaTime = (now - lastShoulderUpdateTime) / 1000.0;
-        double input = lastShoulderPower - power;
-        double rampFactor = deltaTime / RAMP_RATE;
-        if (Math.abs(input) < rampFactor) {
-            rampFactor = input;
+        if (!armClosedLoopEnabled) {
+            double deltaTime = (now - lastShoulderUpdateTime) / 1000.0;
+            double input = lastShoulderPower - power;
+            double rampFactor = deltaTime / RAMP_RATE;
+            if (Math.abs(input) < rampFactor) {
+                rampFactor = input;
+            }
+            lastShoulderPower -= Math.copySign(rampFactor, input);
+            lastShoulderPower = MathUtilities.constrain(lastShoulderPower, -1, 1);
+        } else {
+            lastShoulderPower = power;
         }
-        lastShoulderPower -= Math.copySign(rampFactor, input);
-        lastShoulderPower = MathUtilities.constrain(lastShoulderPower, -1, 1);
         lastShoulderUpdateTime = now;
 
         if (getArmPosition() < LOW_SHOULDER_LIMIT) {
@@ -144,33 +168,90 @@ public class Arm {
         return pot.getVoltage();
     }
 
-    void setClosedLoopEnabled(boolean enabled) {
-        closedLoopEnabled = enabled;
+    double getArmAngle() {
+        return MathUtilities.map(getArmPosition(), 0, 3.286, Math.toRadians(270 - 23.5 + 5), Math.toRadians(-23.5 + 5));
     }
 
-    boolean isClosedLoopEnabled() {
-        return closedLoopEnabled;
+    void setArmClosedLoopEnabled(boolean enabled) {
+        armClosedLoopEnabled = enabled;
     }
 
-    void setTargetPosition(double target) {
+    boolean isArmClosedLoopEnabled() {
+        return armClosedLoopEnabled;
+    }
+
+    void setArmTargetPosition(double target) {
         shoulderPid.setSetpoint(target);
     }
 
-    double getTargetPosition() {
+    double getArmTargetPosition() {
         return shoulderPid.getSetpoint();
     }
 
-    public double lastPIDError() {
+    public double lastArmPIDError() {
         return shoulderPid.getLastError();
     }
 
-    public boolean shoulderAtTarget() {
+    public boolean armAtTarget() {
         return shoulderPid.atTarget();
     }
 
+    public void setLiftPower(double power) {
+        if (liftAtBottom()) {
+            lift.setPower(Math.max(0, power));
+        } else if (liftHomed && getLiftPosition() > LIFT_TOP_EXTENT) {
+            lift.setPower(Math.min(0, power));
+        } else {
+            lift.setPower(power);
+        }
+    }
+
+    public boolean liftAtBottom() {
+        return homingSwitch.isPressed();
+    }
+
+    public int getLiftPosition() {
+        return lift.getCurrentPosition() - liftEncoderOffset;
+    }
+
+    public double getLiftHeight() {
+        return MathUtilities.map(Math.max(0, getLiftPosition()), 0, 9711, 330, 800);
+    }
+
+    public void setLiftTargetPosition(double position) {
+        liftPid.setSetpoint(position);
+    }
+
+    public double getLiftTargetPosition() {
+        return liftPid.getSetpoint();
+    }
+
+    public double lastLiftPIDError() {
+        return liftPid.getLastError();
+    }
+
+    public boolean liftAtTarget() {
+        return liftPid.atTarget();
+    }
+
+    public boolean isLiftHomed() {
+        return liftHomed;
+    }
+
+    public double getManipulatorHeight() {
+        return getLiftHeight() + 13 * 24 * Math.sin(getArmAngle()) - 100;
+    }
+
+    public double getManipulatorOffset() {
+        return -13 * 24 * Math.cos(getArmAngle());
+    }
+
     public void update() {
-        if (closedLoopEnabled) {
+        if (armClosedLoopEnabled) {
             setShoulderPower(shoulderPid.update(getArmPosition()));
+        }
+        if (liftClosedLoopEnabled) {
+            setLiftPower(liftPid.update());
         }
         if (grabberOpen) {
             if (getArmPosition() < MID_SHOULDER) {
@@ -178,6 +259,15 @@ public class Arm {
             } else {
                 jaw1.setPosition(JAW1_READY_POS);
             }
+        }
+
+        if (!liftHomed) {
+            boolean bottomedOut = liftAtBottom();
+            if (!bottomedOut && lastHomingSwitchReading) {
+                liftHomed = true;
+                liftEncoderOffset = lift.getCurrentPosition();
+            }
+            lastHomingSwitchReading = bottomedOut;
         }
     }
 }

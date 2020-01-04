@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -13,6 +14,7 @@ import org.ftc9974.thorcore.control.math.Vector2;
 import org.ftc9974.thorcore.control.navigation.VuMarkNavSource;
 
 @TeleOp(name = "Vuforia Debugger")
+@Disabled
 public class VuforiaDebugger extends OpMode {
 
     private VuMarkNavSource vuforia;

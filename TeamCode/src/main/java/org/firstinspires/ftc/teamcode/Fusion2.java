@@ -89,6 +89,10 @@ public class Fusion2 {
         return asm;
     }
 
+    public void drive(LinearOpMode opMode, Vector2 target, Runnable whileWaiting, double speed) {
+        drive(opMode, target, whileWaiting, speed, true);
+    }
+
     /**
      * Drives the robot to the target position.
      * @param opMode opmode that called the method
@@ -96,7 +100,7 @@ public class Fusion2 {
      * @param whileWaiting callback executed repeatedly while
      *                     the function is running
      */
-    public void drive(LinearOpMode opMode, Vector2 target, Runnable whileWaiting, double speed) {
+    public void drive(LinearOpMode opMode, Vector2 target, Runnable whileWaiting, double speed, boolean stop) {
         rb.resetEncoders();
 
         // calculate new encoder targets. These are the target
@@ -109,6 +113,19 @@ public class Fusion2 {
         double[] merpWeights = new double[targets.length];
         for (int i = 0; i < targets.length; i++) {
             merpWeights[i] = targets[i] / absMaxTarget;
+        }
+
+
+        int maxTargetIndex = -1;
+        {
+            int maxTarget = -1;
+            for (int i = 0; i < targets.length; i++) {
+                int absTarget = Math.abs(targets[i]);
+                if (absTarget > maxTarget) {
+                    maxTarget = absTarget;
+                    maxTargetIndex = i;
+                }
+            }
         }
 
         // calculate the normalized version of the target vector.
@@ -148,7 +165,7 @@ public class Fusion2 {
             // calculate the average progress amount. This is used as
             // a way to check how far overall the robot has moved to
             // the target, and is part of the end state logic.
-            double averageProgress = MathUtilities.average(progress);
+            double averageProgress = progress[maxTargetIndex];//MathUtilities.average(progress);
 
             // end state logic: determine when we are "at target"
             // the current implementation defines "at target" as:
@@ -178,7 +195,7 @@ public class Fusion2 {
             double slowdownPoint = 300;     // distance at which to start slowing down.
 
             // if we are within slowing distance, use the slowdown logic
-            if (remainingDistance < slowdownPoint) {
+            if (remainingDistance < slowdownPoint && stop) {
                 // linearly interpolate between max speed and min speed.
                 // as the robot approaches the target, speed will ramp down,
                 // ending at nominal speed when distance = 0.
@@ -197,9 +214,16 @@ public class Fusion2 {
                     effectiveSpeed * normalizedTargetVector.getY(),
                     headingPid.update()
             );
+
+            /*for (int i = 0; i < progress.length; i++) {
+                opMode.telemetry.addData(String.format("Progress[%d]", i), progress[i]);
+            }
+            opMode.telemetry.addData("Average Progress", averageProgress);*/
         }
-        // stop the robot at the target
-        rb.drive(0, 0, 0);
+        if (stop) {
+            // stop the robot at the target
+            rb.drive(0, 0, 0);
+        }
 
         opMode.telemetry.log().add("Action Completed: Drive %s", target.toString());
         opMode.telemetry.update();
@@ -229,7 +253,7 @@ public class Fusion2 {
 
             double speed = -0.7 * approachDirection;
             double nominalSpeed = 0.2;
-            double slowdownPoint = 10;
+            double slowdownPoint = 100;
             if (Math.abs(distance) < slowdownPoint) {
                 speed = MathUtilities.map(distance, slowdownPoint, 0, speed, Math.copySign(nominalSpeed, speed));
                 if (Math.abs(speed) < nominalSpeed) {
@@ -267,7 +291,7 @@ public class Fusion2 {
 
             double speed = 0.7 * approachDirection;
             double nominalSpeed = 0.2;
-            double slowdownPoint = 10;
+            double slowdownPoint = 100;
             if (Math.abs(distance) < slowdownPoint) {
                 speed = MathUtilities.map(distance, slowdownPoint, 0, speed, Math.copySign(nominalSpeed, speed));
                 if (Math.abs(speed) < nominalSpeed) {
@@ -278,6 +302,82 @@ public class Fusion2 {
         }
         rb.drive(0, 0, 0);
         opMode.telemetry.log().add("Action Completed: Drive To Right Distance (%f)", target);
+        opMode.telemetry.update();
+    }
+
+    public void driveToFrontDistance(LinearOpMode opMode, double target, Runnable whileWaiting) {
+        double approachDirection = (asm.getFrontDistance() > target) ? 1 : -1;
+        while (!opMode.isStopRequested()) {
+            double distance = target - asm.getFrontDistance();
+
+            if (whileWaiting != null) {
+                whileWaiting.run();
+            }
+
+            if (asm.getLeftDistance() > MAX_SANE_DISTANCE) {
+                if (errorSoundFound) {
+                    SoundPlayer.getInstance().startPlaying(appContext, errorSoundId);
+                }
+                opMode.telemetry.log().add("Sanity Check Failed!");
+                opMode.telemetry.update();
+                opMode.requestOpModeStop();
+            }
+
+            if (Math.abs(distance) < 10 || distance * approachDirection > 0) {
+                break;
+            }
+
+            double speed = 0.7 * approachDirection;
+            double nominalSpeed = 0.2;
+            double slowdownPoint = 100;
+            if (Math.abs(distance) < slowdownPoint) {
+                speed = MathUtilities.map(distance, slowdownPoint, 0, speed, Math.copySign(nominalSpeed, speed));
+                if (Math.abs(speed) < nominalSpeed) {
+                    speed = Math.copySign(nominalSpeed, speed);
+                }
+            }
+            rb.drive(0, speed, headingPid.update());
+        }
+        rb.drive(0, 0, 0);
+        opMode.telemetry.log().add("Action Completed: Drive To Front Distance (%f)", target);
+        opMode.telemetry.update();
+    }
+
+    public void driveToBackDistance(LinearOpMode opMode, double target, Runnable whileWaiting) {
+        double approachDirection = (asm.getBackDistance() > target) ? 1 : -1;
+        while (!opMode.isStopRequested()) {
+            double distance = target - asm.getBackDistance();
+
+            if (whileWaiting != null) {
+                whileWaiting.run();
+            }
+
+            if (asm.getLeftDistance() > MAX_SANE_DISTANCE) {
+                if (errorSoundFound) {
+                    SoundPlayer.getInstance().startPlaying(appContext, errorSoundId);
+                }
+                opMode.telemetry.log().add("Sanity Check Failed!");
+                opMode.telemetry.update();
+                opMode.requestOpModeStop();
+            }
+
+            if (Math.abs(distance) < 10 || distance * approachDirection > 0) {
+                break;
+            }
+
+            double speed = -0.7 * approachDirection;
+            double nominalSpeed = 0.2;
+            double slowdownPoint = 100;
+            if (Math.abs(distance) < slowdownPoint) {
+                speed = MathUtilities.map(distance, slowdownPoint, 0, speed, Math.copySign(nominalSpeed, speed));
+                if (Math.abs(speed) < nominalSpeed) {
+                    speed = Math.copySign(nominalSpeed, speed);
+                }
+            }
+            rb.drive(0, speed, headingPid.update());
+        }
+        rb.drive(0, 0, 0);
+        opMode.telemetry.log().add("Action Completed: Drive To Back Distance (%f)", target);
         opMode.telemetry.update();
     }
 
@@ -299,7 +399,7 @@ public class Fusion2 {
         opMode.telemetry.update();
     }
 
-    public void driveForwardsToWall(LinearOpMode opMode, Runnable whileWaiting) {
+    /*public void driveForwardsToWall(LinearOpMode opMode, Runnable whileWaiting) {
         while (!opMode.isStopRequested()) {
             double distance = asm.getWallDistance();
 
@@ -318,7 +418,7 @@ public class Fusion2 {
             rb.drive(0, speed, headingPid.update());
         }
         rb.drive(0, 0, 0);
-    }
+    }*/
 
     public void driveForwardsToTape(LinearOpMode opMode, Runnable whileWaiting) {
         while (!opMode.isStopRequested()) {
@@ -385,22 +485,50 @@ public class Fusion2 {
     }
 
     public void driveToWallDistance(LinearOpMode opMode, double target, Runnable whileWaiting, double speed) {
-        double approachDirection = (asm.getUltrasonicDistance() > target) ? 1 : -1;
+        double lastDistance = asm.getUltrasonicDistance();
+        int numFailedChecks = 0;
+        while (lastDistance < 1 || lastDistance > 10000) {
+            lastDistance = asm.getUltrasonicDistance();
+            numFailedChecks++;
+            if (numFailedChecks >= 5) {
+                opMode.telemetry.log().add("Sanity Check Failed!");
+                opMode.telemetry.update();
+                opMode.requestOpModeStop();
+                rb.drive(0, 0, 0);
+                return;
+            }
+        }
+        numFailedChecks = 0;
+        double approachDirection = (lastDistance > target) ? 1 : -1;
         while (!opMode.isStopRequested()) {
-            double distance = target - asm.getUltrasonicDistance();
+            double newDistance = asm.getUltrasonicDistance();
+            if (newDistance > 1 && newDistance < 10000) {
+                lastDistance = newDistance;
+                numFailedChecks = 0;
+            } else {
+                numFailedChecks++;
+                if (numFailedChecks >= 5) {
+                    opMode.telemetry.log().add("Sanity Check Failed!");
+                    opMode.telemetry.update();
+                    opMode.requestOpModeStop();
+                    rb.drive(0, 0, 0);
+                    return;
+                }
+            }
+            double distance = target - lastDistance;
 
             if (whileWaiting != null) {
                 whileWaiting.run();
             }
 
-            if (asm.getRightDistance() > MAX_SANE_DISTANCE) {
+            /*if (asm.getRightDistance() > MAX_SANE_DISTANCE) {
                 if (errorSoundFound) {
                     SoundPlayer.getInstance().startPlaying(appContext, errorSoundId);
                 }
                 opMode.telemetry.log().add("Sanity Check Failed!");
                 opMode.telemetry.update();
                 opMode.requestOpModeStop();
-            }
+            }*/
 
             if (Math.abs(distance) < 10 || distance * approachDirection > 0) {
                 break;

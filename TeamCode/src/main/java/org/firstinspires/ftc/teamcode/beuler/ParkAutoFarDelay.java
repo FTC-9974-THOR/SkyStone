@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
-@Autonomous(name = "Park (Far; Delay)")
+@Autonomous(name = "Park (Far; Delay)", group = "D")
 public class ParkAutoFarDelay extends LinearOpMode {
 
     private enum Side {
