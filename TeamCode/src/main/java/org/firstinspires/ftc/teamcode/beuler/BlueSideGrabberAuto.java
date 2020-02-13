@@ -29,7 +29,8 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         OK,
         STOP_REQUESTED,
         QUARRY_SIDE,
-        BUILD_SIDE
+        BUILD_SIDE,
+        ULTRASONIC_FAILURE
     }
 
     private MecanumDrive rb;
@@ -41,9 +42,13 @@ public class BlueSideGrabberAuto extends LinearOpMode {
     private StoneVision vision;
 
     private Blinkin blinkin;
+    private ParkingTape parkingTape;
+
+    private Intake intake;
+    private Odometer odometer;
 
     private AutonomousSensorManager asm;
-    private PIDF headingPid, ultrasonicPid;
+    private PIDF headingPid, sidePid;
 
     private StonePosition stonePosition;
 
@@ -77,19 +82,25 @@ public class BlueSideGrabberAuto extends LinearOpMode {
 
         vision = new StoneVision(vuforia.getVuforiaLocalizer(), StoneVision.Tunings.BLUE);
 
+        parkingTape = new ParkingTape(hardwareMap);
+
+        intake = new Intake(hardwareMap);
+        odometer = new Odometer(hardwareMap, intake.intake0);
+        odometer.extend();
+
         asm = fusion2.getASM();
         headingPid = fusion2.headingPid;
         //headingPid.setNominalOutputForward(0.15);
         //headingPid.setNominalOutputReverse(-0.15);
         headingPid.setAtTargetThreshold(Math.toRadians(0.5));
 
-        ultrasonicPid = new PIDF(0.05, 0, 0, 0);
-        ultrasonicPid.setAtTargetThreshold(70);
-        ultrasonicPid.setPhase(false);
-        ultrasonicPid.setPeakOutputForward(0.25);
-        ultrasonicPid.setPeakOutputReverse(-0.25);
-        ultrasonicPid.setNominalOutputForward(0.15);
-        ultrasonicPid.setNominalOutputReverse(-0.15);
+        sidePid = new PIDF(0.04, 0, 0, 0);
+        sidePid.setAtTargetThreshold(10);
+        sidePid.setPhase(false);
+        sidePid.setPeakOutputForward(0.25);
+        sidePid.setPeakOutputReverse(-0.25);
+        sidePid.setNominalOutputForward(0.15);
+        sidePid.setNominalOutputReverse(-0.15);
 
         while (!isStopRequested() && !isStarted()) {
             telemetry.addLine("Ready.");
@@ -99,6 +110,8 @@ public class BlueSideGrabberAuto extends LinearOpMode {
             telemetry.update();
         }
         if (isStopRequested()) return;
+
+        odometer.resetOdometer();
 
         vision.beginProcessing();
         while (!isStopRequested() && !vision.isProcessingComplete()) {
@@ -119,20 +132,23 @@ public class BlueSideGrabberAuto extends LinearOpMode {
             TimingUtilities.runAfterDelay(blinkin::defaultPattern, 500);
         }
 
+        parkingTape.setPower(0);
+        odometer.retract();
+
         if (condition == FailsafeCondition.STOP_REQUESTED) {
             return;
         } else if (condition == FailsafeCondition.QUARRY_SIDE) {
             rb.drive(0, 0, 0);
             {
-                ultrasonicPid.setSetpoint(590);
-                ultrasonicPid.setAtTargetThreshold(10);
-                ultrasonicPid.setPeakOutputForward(0.2);
-                ultrasonicPid.setPeakOutputReverse(-0.2);
+                sidePid.setSetpoint(400);
+                sidePid.setAtTargetThreshold(10);
+                sidePid.setPeakOutputForward(0.2);
+                sidePid.setPeakOutputReverse(-0.2);
 
                 while (!isStopRequested()) {
-                    rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
+                    rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                    if (ultrasonicPid.atTarget()) {
+                    if (sidePid.atTarget()) {
                         break;
                     }
                 }
@@ -140,6 +156,16 @@ public class BlueSideGrabberAuto extends LinearOpMode {
             if (isStopRequested()) return;
 
             fusion2.driveForwardsToTape(this, null);
+            if (isStopRequested()) return;
+        } else if (condition == FailsafeCondition.ULTRASONIC_FAILURE) {
+            rb.drive(0, 0, 0);
+
+            ElapsedTime timer = new ElapsedTime();
+            fusion2.driveForwardsToTape(this, () -> {
+                if (timer.seconds() > 10) {
+                    requestOpModeStop();
+                }
+            });
             if (isStopRequested()) return;
         }
 
@@ -164,18 +190,17 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         }
 
         {
-            double sideDistance = 630;
-            double backDistance = 650;
+            double sideDistance = 716;
+            double backDistance = 775;
             if (stonePosition == StonePosition.LEFT) {
-                backDistance = 650;
-                sideDistance = 633;
+                backDistance = 775;
             } else if (stonePosition == StonePosition.CENTER) {
-                backDistance = 370;
+                backDistance = 575;
             } else if (stonePosition == StonePosition.RIGHT) {
                 backDistance = 380;
             }
 
-            ultrasonicPid.setSetpoint(sideDistance);
+            sidePid.setSetpoint(sideDistance);
 
             double approachDirection = (asm.getBackDistance() > backDistance) ? 1 : -1;
 
@@ -191,15 +216,15 @@ public class BlueSideGrabberAuto extends LinearOpMode {
             while (!isStopRequested()) {
                 double laserDistance = asm.getBackDistance();
                 double distance = -(backDistance - laserDistance);
-                double ultrasonicDistance = asm.getUltrasonicDistance();
+                double sideDistanceReading = odometer.getOdometerPosition();
 
-                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
+                double xCorrection = sidePid.update(sideDistanceReading);
 
                 telemetry.addData("Front Distance", laserDistance);
                 telemetry.addData("Front Error", distance);
-                telemetry.addData("Side Distance", ultrasonicDistance);
+                telemetry.addData("Side Distance", sideDistanceReading);
                 telemetry.addData("X Correction", xCorrection);
-                telemetry.addData("X At Target", ultrasonicPid.atTarget());
+                telemetry.addData("X At Target", sidePid.atTarget());
                 telemetry.update();
 
                 double speed = -0.7;
@@ -215,15 +240,21 @@ public class BlueSideGrabberAuto extends LinearOpMode {
                     effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
                 }
 
-                if ((laserDistance > 8000 && ultrasonicDistance > 500) || laserDistance > 30000) {
+                if ((laserDistance > 8000 && sideDistanceReading > 500) || laserDistance > 30000) {
                     telemetry.log().add("Sanity Check Failure: Wall Laser 1");
                     telemetry.update();
                     return FailsafeCondition.QUARRY_SIDE;
                 }
 
-                if (distance * approachDirection < 20 || stonePosition == StonePosition.CENTER || stonePosition == StonePosition.LEFT) {
+                if (sideDistanceReading < 250) {
+                    telemetry.log().add("Sanity Check Failure: Ultrasonic: %f", sideDistanceReading);
+                    telemetry.update();
+                    return FailsafeCondition.ULTRASONIC_FAILURE;
+                }
+
+                if (distance * approachDirection < 20) {
                     effectiveSpeed = 0;
-                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
+                    if (sidePid.atTarget() || xCorrection == 0) {
                         break;
                     }
                 }
@@ -248,15 +279,15 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         stoneArm.lift();
 
         /*{
-            ultrasonicPid.setSetpoint(590);
-            ultrasonicPid.setAtTargetThreshold(10);
-            ultrasonicPid.setPeakOutputForward(0.5);
-            ultrasonicPid.setPeakOutputReverse(-0.5);
+            sidePid.setSetpoint(590);
+            sidePid.setAtTargetThreshold(10);
+            sidePid.setPeakOutputForward(0.5);
+            sidePid.setPeakOutputReverse(-0.5);
 
             while (!isStopRequested()) {
-                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (ultrasonicPid.atTarget()) {
+                if (sidePid.atTarget()) {
                     break;
                 }
             }
@@ -291,13 +322,13 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         fusion2.drive(this, new Vector2(-250, 0), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
         /*{
-            ultrasonicPid.setSetpoint(590);
-            ultrasonicPid.setAtTargetThreshold(10);
+            sidePid.setSetpoint(590);
+            sidePid.setAtTargetThreshold(10);
 
             while (!isStopRequested()) {
-                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (ultrasonicPid.atTarget()) {
+                if (sidePid.atTarget()) {
                     break;
                 }
             }
@@ -323,12 +354,16 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         }
 
         {
-            double sideDistance = 595;
-            double backDistance = 200;
+            double sideDistance = 675;
+            double backDistance = 575;
 
-            ultrasonicPid.setSetpoint(sideDistance);
-            ultrasonicPid.setPeakOutputForward(0.25);
-            ultrasonicPid.setPeakOutputReverse(-0.25);
+            if (stonePosition == StonePosition.LEFT) {
+                backDistance = 150;
+            }
+
+            sidePid.setSetpoint(sideDistance);
+            sidePid.setPeakOutputForward(0.25);
+            sidePid.setPeakOutputReverse(-0.25);
 
             double approachDirection = (asm.getBackDistance() > backDistance) ? 1 : -1;
 
@@ -349,20 +384,20 @@ public class BlueSideGrabberAuto extends LinearOpMode {
                 return FailsafeCondition.STOP_REQUESTED;
             }
 
-            ultrasonicPid.setAtTargetThreshold(70);
+            sidePid.setAtTargetThreshold(10);
 
             while (!isStopRequested()) {
                 double laserDistance = asm.getBackDistance();
                 double distance = -(backDistance - laserDistance);
-                double ultrasonicDistance = asm.getUltrasonicDistance();
+                double sideDistanceReading = odometer.getOdometerPosition();
 
-                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
+                double xCorrection = sidePid.update(sideDistanceReading);
 
                 telemetry.addData("Back Distance", laserDistance);
                 telemetry.addData("Back Error", distance);
-                telemetry.addData("Side Distance", ultrasonicDistance);
+                telemetry.addData("Side Distance", sideDistanceReading);
                 telemetry.addData("X Correction", xCorrection);
-                telemetry.addData("X At Target", ultrasonicPid.atTarget());
+                telemetry.addData("X At Target", sidePid.atTarget());
                 telemetry.update();
 
                 double speed = -0.5;
@@ -378,15 +413,21 @@ public class BlueSideGrabberAuto extends LinearOpMode {
                     effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
                 }
 
-                if ((laserDistance > 8000 && ultrasonicDistance > 500) || laserDistance > 30000) {
+                if ((laserDistance > 8000 && sideDistanceReading > 500) || laserDistance > 30000) {
                     telemetry.log().add("Sanity Check Failure: Wall Laser 1");
                     telemetry.update();
                     return FailsafeCondition.QUARRY_SIDE;
                 }
 
+                if (sideDistanceReading < 200) {
+                    telemetry.log().add("Sanity Check Failure: Ultrasonic: %f", sideDistanceReading);
+                    telemetry.update();
+                    return FailsafeCondition.ULTRASONIC_FAILURE;
+                }
+
                 if (distance < 20 || asm.getBackDistance() < backDistance + 20) {
                     effectiveSpeed = 0;
-                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
+                    if (sidePid.atTarget() || xCorrection == 0) {
                         break;
                     }
                 }
@@ -399,8 +440,10 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         }
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(150, 75), null, 1);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        odometer.retract();
+
+        //fusion2.drive(this, new Vector2(150, 75), null, 1);
+        //if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         // grab second stone
 
@@ -417,15 +460,15 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         stoneArm.lift();
 
         /*{
-            ultrasonicPid.setSetpoint(590);
-            ultrasonicPid.setAtTargetThreshold(10);
-            ultrasonicPid.setPeakOutputForward(0.5);
-            ultrasonicPid.setPeakOutputReverse(-0.5);
+            sidePid.setSetpoint(590);
+            sidePid.setAtTargetThreshold(10);
+            sidePid.setPeakOutputForward(0.5);
+            sidePid.setPeakOutputReverse(-0.5);
 
             while (!isStopRequested()) {
-                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (ultrasonicPid.atTarget()) {
+                if (sidePid.atTarget()) {
                     break;
                 }
             }
@@ -463,7 +506,7 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         fusion2.turnToHeading(this, 0.5 * Math.PI, foundationClaw::update);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(150, 0), foundationClaw::update, 1);
+        fusion2.drive(this, new Vector2(-100, 0), foundationClaw::update, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         fusion2.drive(this, new Vector2(0, -300), foundationClaw::update, 0.5);
@@ -477,7 +520,7 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         //fusion2.driveForwardsToWall(this, foundationClaw::update);
         //if (isStopRequested()) return;
 
-        fusion2.drive(this, new Vector2(0, 375), foundationClaw::update, 0.6);
+        fusion2.drive(this, new Vector2(0, 250), foundationClaw::update, 0.6);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         {
@@ -497,10 +540,16 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         foundationClaw.retract();
+        parkingTape.setPower(1);
+
+        TimingUtilities.runAfterDelay(() -> {
+            parkingTape.setPower(0);
+        }, 5000);
+
         fusion2.drive(this, new Vector2(0, -550), foundationClaw::update, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(-50, 0), foundationClaw::update, 1);
+        fusion2.drive(this, new Vector2(-85, 0), foundationClaw::update, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         fusion2.drive(this, new Vector2(0, 675), foundationClaw::update, 1);

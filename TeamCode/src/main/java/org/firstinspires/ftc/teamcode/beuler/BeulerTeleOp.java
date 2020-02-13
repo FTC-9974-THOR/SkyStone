@@ -5,6 +5,7 @@ import android.os.SystemClock;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
@@ -22,6 +23,10 @@ public class BeulerTeleOp extends OpMode {
     private Blinkin blinkin;
     private StoneArm stoneArm;
 
+    private ParkingTape parkingTape;
+
+    private Odometer odometer;
+
     private NavSource navSource;
     private PIDF headingPid;
     private boolean lastTurnInput;
@@ -31,7 +36,22 @@ public class BeulerTeleOp extends OpMode {
     private long blinkinTimeStamp;
 
     private boolean homingSequenceComplete;
-    private boolean armRTP;
+    private boolean armRTP, lastReady, lastPlace, lastRetract, lastLowPlace;
+    private boolean liftRTP;
+    private boolean lastLiftInput;
+    private boolean liftMaxDetectionActive;
+    private double lastLiftError;
+
+    private enum RetractState {
+        RELEASE,
+        LIFT_A_BIT,
+        REVOLVE_ARM,
+        LOWER_LIFT_UNTIL_ARM_READY,
+        LOWER_LIFT_WITH_ARM
+    }
+    private RetractState retractState;
+    private ElapsedTime retractTimer;
+    private boolean retractSequenceEngaged;
 
     @Override
     public void init() {
@@ -46,6 +66,11 @@ public class BeulerTeleOp extends OpMode {
         stoneArm.retract();
         stoneArm.grab();
 
+        parkingTape = new ParkingTape(hardwareMap);
+
+        odometer = new Odometer(hardwareMap, intake.intake0);
+        odometer.retract();
+
         arm.setArmTargetPosition(arm.getArmPosition());
         arm.holdCapstone();
 
@@ -56,6 +81,8 @@ public class BeulerTeleOp extends OpMode {
         headingPid.setContinuityRange(-Math.PI, Math.PI);
         headingPid.setContinuous(true);
         Thread.currentThread().setPriority(7);
+
+        retractTimer = new ElapsedTime();
     }
 
     @Override
@@ -63,16 +90,21 @@ public class BeulerTeleOp extends OpMode {
         long startTime = System.nanoTime();
         lastTimeStamp = startTime;
 
+        //telemetry.addData("Odometer Position", odometer.getOdometerPosition());
+
         //Vector2 driveInput = new Vector2(gamepad1.right_stick_x, -gamepad1.right_stick_y);
         //driveInput = driveInput.rotate(navSource.getHeading());
         boolean currentTurnInput = Math.abs(gamepad1.left_stick_x) > 0.1;
         double currentTurnError = Math.abs(headingPid.getLastError());
-        double x = Math.copySign(Math.pow(gamepad1.right_stick_x, 2), gamepad1.right_stick_x);
-        double y = Math.copySign(Math.pow(gamepad1.right_stick_y, 2), -gamepad1.right_stick_y);
-        double r = Math.copySign(Math.pow(gamepad1.left_stick_x, 2), -gamepad1.left_stick_x);
+        double x = gamepad1.right_stick_x * Math.abs(gamepad1.right_stick_x);
+        double y = -gamepad1.right_stick_y * Math.abs(gamepad1.right_stick_y);
+        double r = -gamepad1.left_stick_x * Math.abs(gamepad1.left_stick_x);
         telemetry.addData("X", x);
         telemetry.addData("Y", y);
         telemetry.addData("R", r);
+        telemetry.addData("X raw", gamepad1.right_stick_x);
+        telemetry.addData("Y raw", -gamepad1.right_stick_y);
+        telemetry.addData("R raw", -gamepad1.left_stick_x);
         if (currentTurnInput && !lastTurnInput) {
             // begin turning
             rb.drive(x, y, r);
@@ -97,8 +129,12 @@ public class BeulerTeleOp extends OpMode {
         lastTurnInput = currentTurnInput;
         lastTurnError = currentTurnError;
 
-        telemetry.addData("Drive System Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
-        lastTimeStamp = System.nanoTime();
+        if (gamepad1.a) {
+            headingPid.setSetpoint(navSource.getHeading());
+        }
+
+        //telemetry.addData("Drive System Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        //lastTimeStamp = System.nanoTime();
 
         if (gamepad2.y) {
             arm.releaseCapstone();
@@ -114,8 +150,8 @@ public class BeulerTeleOp extends OpMode {
             blinkinTimeStamp = SystemClock.uptimeMillis();
         }
 
-        telemetry.addData("Manipulator Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
-        lastTimeStamp = System.nanoTime();
+        //telemetry.addData("Manipulator Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        //lastTimeStamp = System.nanoTime();
 
         if (gamepad1.x) {
             foundationClaw.extend();
@@ -123,8 +159,8 @@ public class BeulerTeleOp extends OpMode {
             foundationClaw.retract();
         }
 
-        telemetry.addData("Claw Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
-        lastTimeStamp = System.nanoTime();
+        //telemetry.addData("Claw Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        //lastTimeStamp = System.nanoTime();
 
         if (!homingSequenceComplete && arm.liftAtBottom()) {
             blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.HOT_PINK);
@@ -132,10 +168,10 @@ public class BeulerTeleOp extends OpMode {
             homingSequenceComplete = true;
         }
 
-        if (gamepad2.left_trigger > 0.8) {
+        if (gamepad1.left_trigger > 0.8 || gamepad2.left_trigger > 0.8) {
             intake.intake(1);
             blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
-        } else if (gamepad2.right_trigger > 0.8) {
+        } else if (gamepad1.right_trigger > 0.8 || gamepad2.right_trigger > 0.8) {
             intake.outtake(1);
             blinkin.setPattern(RevBlinkinLedDriver.BlinkinPattern.RED);
         } else {
@@ -145,44 +181,160 @@ public class BeulerTeleOp extends OpMode {
             }
         }
 
-        telemetry.addData("Intake Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
-        lastTimeStamp = System.nanoTime();
+        //telemetry.addData("Intake Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        //lastTimeStamp = System.nanoTime();
 
-        /*boolean currentInput = gamepad2.dpad_up || gamepad2.dpad_down;
+        if (gamepad2.back && !lastRetract) {
+            retractState = RetractState.RELEASE;
+            retractTimer.reset();
+            arm.release();
+            retractSequenceEngaged = true;
+        }
+        lastRetract = gamepad2.back;
 
-        if (gamepad2.right_bumper) {
-            armRTP = true;
-            arm.setArmTargetPosition(1.39);
-        } else if (gamepad2.left_bumper) {
-            armRTP = true;
-            arm.setArmTargetPosition(0.5);
+        if (retractSequenceEngaged) {
+            switch (retractState) {
+                case RELEASE:
+                    if (retractTimer.seconds() > 0.3) {
+                        retractState = RetractState.LIFT_A_BIT;
+                        liftRTP = true;
+                        arm.setLiftTargetPosition(Math.min(arm.getLiftPosition() + 900, arm.getLiftMaxPosition()));
+                    }
+                    break;
+                case LIFT_A_BIT:
+                    if (Math.abs(arm.lastLiftPIDError()) < 75) {
+                        armRTP = true;
+                        arm.startControlledArmMotion(1.7);
+                        retractTimer.reset();
+                        retractState = RetractState.REVOLVE_ARM;
+                    }
+                    break;
+                case REVOLVE_ARM:
+                    if (arm.getArmPosition() > 1.5) {
+                        liftRTP = true;
+                        arm.setLiftTargetPosition(143);
+                        retractState = RetractState.LOWER_LIFT_UNTIL_ARM_READY;
+                    }
+                    break;
+                case LOWER_LIFT_UNTIL_ARM_READY:
+                    if (retractTimer.seconds() > 1.5) {
+                        armRTP = true;
+                        arm.startControlledArmMotion(3);
+                        retractState = RetractState.LOWER_LIFT_WITH_ARM;
+                        arm.setLiftClosedLoopEnabled(false);
+                        arm.setLiftPower(-1);
+                    }
+                    break;
+                case LOWER_LIFT_WITH_ARM:
+                    if (arm.getLiftPosition() < 0 || arm.liftAtBottom()) {
+                        arm.setLiftPower(0);
+                    }
+                    if (arm.getLiftPosition() < 230 && arm.getArmPosition() > 2.8) {
+                        retractSequenceEngaged = false;
+                        liftRTP = false;
+                        armRTP = false;
+                    }
+                    break;
+            }
         }
 
+        telemetry.addData("Retract Sequence Engaged", retractSequenceEngaged);
+        telemetry.addData("Retract State", retractState);
+
+        boolean currentInput = Math.abs(gamepad2.left_stick_y) > 0.05;
+
+        if (gamepad2.left_bumper) {
+            if (!lastReady) {
+                arm.startControlledArmMotion(1.45);
+            }
+            armRTP = true;
+        } else if (gamepad2.right_bumper) {
+            if (!lastPlace) {
+                arm.startControlledArmMotion(0.953);
+            }
+            armRTP = true;
+        } else if (gamepad2.dpad_down) {
+            if (!lastLowPlace) {
+                arm.startControlledArmMotion(0.4);
+            }
+            armRTP = true;
+        }
+        lastReady = gamepad2.left_bumper;
+        lastPlace = gamepad2.right_bumper;
+        lastLowPlace = gamepad2.dpad_down;
+
         if (armRTP) {
-            arm.setArmClosedLoopEnabled(true);
             if (currentInput) {
+                retractSequenceEngaged = false;
+                arm.stopControlledArmMotion();
                 armRTP = false;
             }
-        } else {*/
+        } else {
             arm.setArmClosedLoopEnabled(false);
-            if (gamepad2.dpad_up) {
-                arm.setShoulderPower(1);
-            } else if (gamepad2.dpad_down) {
-                arm.setShoulderPower(-1);
+            if (Math.abs(gamepad2.left_stick_y) > 0.05) {
+                arm.setShoulderPower(-gamepad2.left_stick_y);
             } else {
-                // just in case
                 arm.setShoulderPower(0);
             }
-        //}
+        }
 
-        telemetry.addData("Shoulder Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        /*telemetry.addData("Stick", gamepad2.left_stick_y);
+        telemetry.addData("Speed Limit", arm.speedLimit);
+        telemetry.addData("Arm RTP", armRTP);
+        telemetry.addData("Start Point", arm.shoulderStartPoint);
+        telemetry.addData("Target Point", arm.getArmTargetPosition());
+        telemetry.addData("To Target", arm.toTarget);
+        telemetry.addData("From Start", arm.fromStart);
+        telemetry.addData("Arm Position", arm.getArmPosition());
+        telemetry.addData("Last Arm Error", arm.lastArmPIDError());
+        telemetry.addData("Pid Output", arm.pidOutput);*/
+        //telemetry.addData("Shoulder Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
         //telemetry.addData("Arm Position", arm.getArmPosition());
         //telemetry.addData("RTP Active", armRTP);
-        lastTimeStamp = System.nanoTime();
+        //lastTimeStamp = System.nanoTime();
 
-        arm.setLiftPower(-gamepad2.right_stick_y);
+        boolean liftInput = Math.abs(gamepad2.right_stick_y) > 0.05 || gamepad2.right_stick_button;
+
+        if (gamepad2.left_bumper) {
+            liftRTP = true;
+            arm.setLiftTargetPosition(arm.getLiftMaxPosition());
+        } else if (gamepad2.dpad_down) {
+            liftRTP = true;
+            arm.setLiftTargetPosition(4218);
+        }
+
+        if (liftRTP) {
+            arm.setLiftClosedLoopEnabled(true);
+            if (liftInput) {
+                retractSequenceEngaged = false;
+                liftRTP = false;
+            }
+        } else {
+            if (liftInput || !arm.isLiftHomed()) {
+                arm.setLiftClosedLoopEnabled(false);
+                arm.setLiftPower(-gamepad2.right_stick_y);
+            } else if (lastLiftInput) {
+                arm.setLiftClosedLoopEnabled(true);
+                arm.setLiftTargetPosition(arm.getLiftPosition());
+                liftMaxDetectionActive = true;
+                lastLiftError = -1;
+            }
+
+            if (liftMaxDetectionActive) {
+                double currentError = Math.abs(arm.lastLiftPIDError());
+                if (currentError < lastLiftError) {
+                    liftMaxDetectionActive = false;
+                    arm.setLiftTargetPosition(arm.getLiftPosition());
+                }
+                lastLiftError = currentError;
+            }
+        }
+        lastLiftInput = liftInput;
+
+        //telemetry.addData("Lift RTP", liftRTP);
+        //telemetry.addData("Lift Target", arm.getLiftTargetPosition());
         telemetry.addData("Lift Homed", arm.isLiftHomed());
-        //telemetry.addData("Lift Position", arm.getLiftPosition());
+        telemetry.addData("Lift Position", arm.getLiftPosition());
 
         //telemetry.addData("Arm Angle", arm.getArmAngle());
         //telemetry.addData("Lift Height", arm.getLiftHeight());
@@ -192,8 +344,26 @@ public class BeulerTeleOp extends OpMode {
         arm.update();
         foundationClaw.update();
 
-        telemetry.addData("Update Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
-        lastTimeStamp = System.nanoTime();
+        //telemetry.addData("Update Time", (System.nanoTime() - lastTimeStamp) / 1000000.0);
+        //lastTimeStamp = System.nanoTime();
+
+        if (gamepad1.left_bumper) {
+            parkingTape.setPower(1);
+        } else if (gamepad1.right_bumper) {
+            parkingTape.setPower(-1);
+        } else {
+            parkingTape.setPower(0);
+        }
+
+        if (gamepad1.dpad_down) {
+            odometer.extend();
+        } else if (gamepad1.dpad_up) {
+            odometer.retract();
+        }
+
+        if (gamepad1.b) {
+            odometer.resetOdometer();
+        }
 
         telemetry.addData("Loop Time", (System.nanoTime() - startTime) / 1000000.0);
     }

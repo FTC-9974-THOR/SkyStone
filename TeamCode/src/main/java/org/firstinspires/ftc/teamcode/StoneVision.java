@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.SystemClock;
 
+import com.qualcomm.robotcore.robot.Robot;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.RobotLog;
 import com.vuforia.Frame;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -72,6 +74,8 @@ public class StoneVision {
 
     private ElapsedTime timer;
 
+    private RenderScriptContextManager rscm;
+
     public StoneVision(VuforiaLocalizer vuforia, Tunings tunings) {
         this.vuforia = vuforia;
         this.vuforia.enableConvertFrameToBitmap();
@@ -80,9 +84,11 @@ public class StoneVision {
         timer = new ElapsedTime();
 
         processingComplete = new AtomicBoolean(false);
+        rscm = RenderScriptContextManager.getInstance();
     }
 
     public void beginProcessing() {
+        processingComplete.set(false);
         timer.reset();
         vuforia.getFrameOnce(Continuation.createTrivial(this::consumeFrame));
     }
@@ -115,9 +121,24 @@ public class StoneVision {
 
         //saveBitmap(bitmap, "Frame");
 
-        double leftMatchFactor = processRegion(bitmap, tunings.leftX, tunings.leftY, tunings.leftWidth, tunings.leftHeight);
-        double centerMatchFactor = processRegion(bitmap, tunings.centerX, tunings.centerY, tunings.centerWidth, tunings.centerHeight);
-        double rightMatchFactor = processRegion(bitmap, tunings.rightX, tunings.rightY, tunings.rightWidth, tunings.rightHeight);
+        double leftMatchFactor = processRegion(bitmap, tunings.leftX, tunings.leftY, tunings.leftWidth, tunings.leftHeight, true);
+        double centerMatchFactor = processRegion(bitmap, tunings.centerX, tunings.centerY, tunings.centerWidth, tunings.centerHeight, true);
+        double rightMatchFactor = processRegion(bitmap, tunings.rightX, tunings.rightY, tunings.rightWidth, tunings.rightHeight, true);
+
+        RobotLog.ii("StoneVision", "Left Factor: %f Center Factor: %f Right Factor: %f", leftMatchFactor, centerMatchFactor, rightMatchFactor);
+
+        double[] factors = {leftMatchFactor, centerMatchFactor, rightMatchFactor};
+        Arrays.sort(factors);
+
+        // 90% rule
+        // if the factors are too close together, use cpu
+        if (factors[0] / factors[1] > 0.9 || factors[0] < 2000) {
+            RobotLog.ww("StoneVision", "Factors are too similar, falling back to CPU processing");
+            leftMatchFactor = processRegion(bitmap, tunings.leftX, tunings.leftY, tunings.leftWidth, tunings.leftHeight, false);
+            centerMatchFactor = processRegion(bitmap, tunings.centerX, tunings.centerY, tunings.centerWidth, tunings.centerHeight, false);
+            rightMatchFactor = processRegion(bitmap, tunings.rightX, tunings.rightY, tunings.rightWidth, tunings.rightHeight, false);
+            RobotLog.ii("StoneVision", "Left Factor: %f Center Factor: %f Right Factor: %f", leftMatchFactor, centerMatchFactor, rightMatchFactor);
+        }
 
         double min = MathUtilities.min(leftMatchFactor, centerMatchFactor, rightMatchFactor);
 
@@ -143,7 +164,7 @@ public class StoneVision {
         }
     }
 
-    private double processRegion(Bitmap bitmap, int x, int y, int width, int height) {
+    private double processRegion(Bitmap bitmap, int x, int y, int width, int height, boolean gpu) {
         // TODO: 12/26/19 Implement this using RenderScript
         int[] pixels = new int[width * height];
         bitmap.getPixels(pixels, 0, width, x, y, width, height);
@@ -201,6 +222,18 @@ public class StoneVision {
         saturation.recycle();
         value.recycle();
         matchFactor.recycle();*/
+
+        //ElapsedTime processingTimer = new ElapsedTime();
+        /*if (rscm == null) {
+            rscm = RenderScriptContextManager.getInstance();
+        }*/
+        if (gpu) {
+            try {
+                return rscm.calculateValueSum(pixels);
+            } catch (NullPointerException e) {
+                RobotLog.ee("StoneVision", "Got NullPointerException from RenderScriptContextManager", e);
+            }
+        }
 
         return Arrays.stream(pixels)
                 .parallel()

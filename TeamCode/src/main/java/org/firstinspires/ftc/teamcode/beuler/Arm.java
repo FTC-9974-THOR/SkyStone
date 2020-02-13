@@ -18,9 +18,9 @@ import org.ftc9974.thorcore.util.MathUtilities;
 
 public class Arm {
 
-    private static final double HIGH_SHOULDER_LIMIT = 3.22,
+    private static final double HIGH_SHOULDER_LIMIT = 3.25,
                                 MID_SHOULDER = 1.39,
-                                LOW_SHOULDER_LIMIT = 0.378,
+                                LOW_SHOULDER_LIMIT = 0.389,
                                 JAW0_OPEN_POS = MathUtilities.map(1910, 500, 2500, 0, 1),
                                 JAW0_PUSH_POS = MathUtilities.map(938, 500, 2500, 0, 1),
                                 JAW0_CLOSED_POS = MathUtilities.map(700, 500, 2500, 0, 1),
@@ -29,7 +29,7 @@ public class Arm {
                                 JAW1_PUSH_POS = MathUtilities.map(1698, 500, 2500, 0, 1),
                                 JAW1_CLOSED_POS = MathUtilities.map(1870, 500, 2500, 0, 1),
                                 RAMP_RATE = 0.5, // seconds to full power
-                                LIFT_TOP_EXTENT = 9711;
+                                LIFT_TOP_EXTENT = 5905; //8260 * (50.9 / 71.2);
 
     @Hardware
     public DcMotorEx shoulder, lift;
@@ -41,10 +41,13 @@ public class Arm {
     public AnalogInput pot;
 
     @Hardware
-    public TouchSensor homingSwitch;
+    public TouchSensor homingSwitch, stowExtent;
 
     private PIDF shoulderPid;
     private boolean armClosedLoopEnabled;
+    public double shoulderStartPoint;
+    private boolean armInControlledMotion;
+    public double speedLimit, toTarget, fromStart, pidOutput;
 
     private PIDF liftPid;
     private boolean liftClosedLoopEnabled;
@@ -80,17 +83,19 @@ public class Arm {
         shoulderPid.setNominalOutputReverse(-0.1);
         shoulderPid.setPeakOutputForward(1);
         shoulderPid.setPeakOutputReverse(-1);
-        shoulderPid.setAtTargetThreshold(0.05);
+        shoulderPid.setAtTargetThreshold(0.01);
 
         lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         lift.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        lift.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        liftPid = new PIDF(1, 0, 0, 0);
-        shoulderPid.setNominalOutputReverse(0);
-        shoulderPid.setNominalOutputForward(0.1);
-        shoulderPid.setPeakOutputForward(1);
-        shoulderPid.setPeakOutputReverse(-1);
-        shoulderPid.setAtTargetThreshold(15);
+        liftPid = new PIDF(1.0/500.0, 0, 0, 0);
+        liftPid.setNominalOutputReverse(0);
+        liftPid.setNominalOutputForward(0.1);
+        liftPid.setPeakOutputForward(1);
+        liftPid.setPeakOutputReverse(-1);
+        liftPid.setAtTargetThreshold(15);
     }
 
     void grab() {
@@ -155,9 +160,11 @@ public class Arm {
         }
         lastShoulderUpdateTime = now;
 
-        if (getArmPosition() < LOW_SHOULDER_LIMIT) {
+        double armPosition = getArmPosition();
+
+        if (armPosition < LOW_SHOULDER_LIMIT) {
             lastShoulderPower = Math.max(0.2, lastShoulderPower);
-        } else if (getArmPosition() > HIGH_SHOULDER_LIMIT) {
+        } else if (armPosition > HIGH_SHOULDER_LIMIT || stowExtent.isPressed()) {
             lastShoulderPower = Math.min(0, lastShoulderPower);
         }
 
@@ -188,6 +195,18 @@ public class Arm {
         return shoulderPid.getSetpoint();
     }
 
+    public void startControlledArmMotion(double target) {
+        shoulderStartPoint = getArmPosition();
+        armInControlledMotion = true;
+        setArmTargetPosition(target);
+        setArmClosedLoopEnabled(true);
+    }
+
+    public void stopControlledArmMotion() {
+        armInControlledMotion = false;
+        setArmClosedLoopEnabled(false);
+    }
+
     public double lastArmPIDError() {
         return shoulderPid.getLastError();
     }
@@ -215,7 +234,11 @@ public class Arm {
     }
 
     public double getLiftHeight() {
-        return MathUtilities.map(Math.max(0, getLiftPosition()), 0, 9711, 330, 800);
+        return MathUtilities.map(Math.max(0, getLiftPosition()), 0, LIFT_TOP_EXTENT, 330, 800);
+    }
+
+    public double getLiftMaxPosition() {
+        return LIFT_TOP_EXTENT;
     }
 
     public void setLiftTargetPosition(double position) {
@@ -224,6 +247,14 @@ public class Arm {
 
     public double getLiftTargetPosition() {
         return liftPid.getSetpoint();
+    }
+
+    public void setLiftClosedLoopEnabled(boolean enabled) {
+        liftClosedLoopEnabled = enabled;
+    }
+
+    public boolean isLiftClosedLoopEnabled() {
+        return liftClosedLoopEnabled;
     }
 
     public double lastLiftPIDError() {
@@ -248,10 +279,34 @@ public class Arm {
 
     public void update() {
         if (armClosedLoopEnabled) {
-            setShoulderPower(shoulderPid.update(getArmPosition()));
+            if (armInControlledMotion) {
+                double currentPosition = getArmPosition();
+                double cruiseSpeed = 1;
+                if (currentPosition > MID_SHOULDER && getArmTargetPosition() > MID_SHOULDER && shoulderStartPoint < getArmTargetPosition()) {
+                    cruiseSpeed = 0.5;
+                }
+                speedLimit = cruiseSpeed;
+                toTarget = Math.abs(getArmTargetPosition() - currentPosition);
+                if (toTarget < 0.2) {
+                    speedLimit = 0.2;
+                } else if (toTarget < 0.5) {
+                    speedLimit = MathUtilities.map(toTarget, 0.2, 0.5, 0.2, cruiseSpeed);
+                }
+
+                if (Math.abs(getArmTargetPosition() - shoulderStartPoint) > 0.5) {
+                    fromStart = Math.abs(shoulderStartPoint - currentPosition);
+                    if (fromStart < 0.5) {
+                        speedLimit = Math.min(speedLimit, MathUtilities.map(fromStart, 0, 0.5, 0.3, cruiseSpeed));
+                    }
+                }
+                shoulderPid.setPeakOutputForward(speedLimit);
+                shoulderPid.setPeakOutputReverse(-speedLimit);
+            }
+            pidOutput = shoulderPid.update(getArmPosition());
+            setShoulderPower(pidOutput);
         }
-        if (liftClosedLoopEnabled) {
-            setLiftPower(liftPid.update());
+        if (liftClosedLoopEnabled && liftHomed) {
+            setLiftPower(liftPid.update(getLiftPosition()));
         }
         if (grabberOpen) {
             if (getArmPosition() < MID_SHOULDER) {

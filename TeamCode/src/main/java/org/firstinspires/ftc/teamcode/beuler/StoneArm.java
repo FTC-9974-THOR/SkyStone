@@ -15,8 +15,8 @@ public class StoneArm {
 
     public StoneArm(HardwareMap hw) {
         Realizer.realize(this, hw);
-        pivot.setPwmRange(new PwmControl.PwmRange(1180, 1950));
-        grip.setPwmRange(new PwmControl.PwmRange(1050, 1500));
+        pivot.setPwmRange(new PwmControl.PwmRange(1180, 1940));
+        grip.setPwmRange(new PwmControl.PwmRange(1050, 1560));
     }
 
     public void retract() {

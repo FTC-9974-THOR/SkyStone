@@ -11,9 +11,9 @@ public enum MotorType {
                            // later
 
     CORE_HEX(288),
-    HD_HEX_20(1), // Ticks per revolution is actually not listed on REV's website, so I have no clue
-                  // what the actual value is
-    HD_HEX_40(1),
+    HD_HEX_20(7 * 20 * 4), // Ticks per revolution is actually not listed on REV's website, so I have no clue
+                                 // what the actual value is. I assume it's the same as the Neverest motors.
+    HD_HEX_40(7 * 40 * 4),
 
     YELLOWJACKET_5_2((int) (7 * 4 * 5.2)), // 1150 RPM
     YELLOWJACKET_13_7((int) (7 * 4 * 13.7)); // 435 RPM

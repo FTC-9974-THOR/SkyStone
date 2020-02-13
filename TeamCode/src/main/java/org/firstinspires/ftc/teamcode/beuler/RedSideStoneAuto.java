@@ -23,15 +23,14 @@ import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.MathUtilities;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
-@Autonomous(name = "Red Skystone & Foundation", group = "C")
-public class RedSideGrabberAuto extends LinearOpMode {
+@Autonomous(name = "Red Skystone", group = "B")
+public class RedSideStoneAuto extends LinearOpMode {
 
     private enum FailsafeCondition {
         OK,
         STOP_REQUESTED,
         QUARRY_SIDE,
-        BUILD_SIDE,
-        ULTRASONIC_FAILURE
+        BUILD_SIDE
     }
 
     private MecanumDrive rb;
@@ -46,11 +45,8 @@ public class RedSideGrabberAuto extends LinearOpMode {
 
     private ParkingTape parkingTape;
 
-    private Intake intake;
-    private Odometer odometer;
-
     private AutonomousSensorManager asm;
-    private PIDF headingPid, sidePid;
+    private PIDF headingPid, ultrasonicPid;
 
     private StonePosition stonePosition;
 
@@ -86,23 +82,19 @@ public class RedSideGrabberAuto extends LinearOpMode {
 
         parkingTape = new ParkingTape(hardwareMap);
 
-        intake = new Intake(hardwareMap);
-        odometer = new Odometer(hardwareMap, intake.intake0);
-        odometer.extend();
-
         asm = fusion2.getASM();
         headingPid = fusion2.headingPid;
         //headingPid.setNominalOutputForward(0.15);
         //headingPid.setNominalOutputReverse(-0.15);
         headingPid.setAtTargetThreshold(Math.toRadians(0.5));
 
-        sidePid = new PIDF(0.04, 0, 0, 0);
-        sidePid.setAtTargetThreshold(10);
-        sidePid.setPhase(false);
-        sidePid.setPeakOutputForward(0.25);
-        sidePid.setPeakOutputReverse(-0.25);
-        sidePid.setNominalOutputForward(0.15);
-        sidePid.setNominalOutputReverse(-0.15);
+        ultrasonicPid = new PIDF(0.05, 0, 0, 0);
+        ultrasonicPid.setAtTargetThreshold(10);
+        ultrasonicPid.setPhase(false);
+        ultrasonicPid.setPeakOutputForward(0.25);
+        ultrasonicPid.setPeakOutputReverse(-0.25);
+        ultrasonicPid.setNominalOutputForward(0.15);
+        ultrasonicPid.setNominalOutputReverse(-0.15);
 
         telemetry.addLine("Initializing Hardware Acceleration...");
         telemetry.update();
@@ -116,7 +108,6 @@ public class RedSideGrabberAuto extends LinearOpMode {
             telemetry.update();
         }
         if (isStopRequested()) return;
-        odometer.resetOdometer();
 
         vision.beginProcessing();
         while (!isStopRequested() && !vision.isProcessingComplete()) {
@@ -139,22 +130,20 @@ public class RedSideGrabberAuto extends LinearOpMode {
 
         parkingTape.setPower(0);
 
-        odometer.retract();
-
         if (condition == FailsafeCondition.STOP_REQUESTED) {
             return;
         } else if (condition == FailsafeCondition.QUARRY_SIDE) {
             rb.drive(0, 0, 0);
             {
-                sidePid.setSetpoint(400);
-                sidePid.setAtTargetThreshold(10);
-                sidePid.setPeakOutputForward(0.2);
-                sidePid.setPeakOutputReverse(-0.2);
+                ultrasonicPid.setSetpoint(400);
+                ultrasonicPid.setAtTargetThreshold(10);
+                ultrasonicPid.setPeakOutputForward(0.2);
+                ultrasonicPid.setPeakOutputReverse(-0.2);
 
                 while (!isStopRequested()) {
-                    rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
+                    rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                    if (sidePid.atTarget()) {
+                    if (ultrasonicPid.atTarget()) {
                         break;
                     }
                 }
@@ -162,16 +151,6 @@ public class RedSideGrabberAuto extends LinearOpMode {
             if (isStopRequested()) return;
 
             fusion2.driveBackwardsToTape(this, null);
-            if (isStopRequested()) return;
-        } else if (condition == FailsafeCondition.ULTRASONIC_FAILURE) {
-            rb.drive(0, 0, 0);
-
-            ElapsedTime timer = new ElapsedTime();
-            fusion2.driveBackwardsToTape(this, () -> {
-                if (timer.seconds() > 10) {
-                    requestOpModeStop();
-                }
-            });
             if (isStopRequested()) return;
         }
 
@@ -194,7 +173,7 @@ public class RedSideGrabberAuto extends LinearOpMode {
         }
 
         {
-            double sideDistance = 716;
+            double sideDistance = 427;
             double frontDistance = 710;
             if (stonePosition == StonePosition.LEFT) {
                 frontDistance = 710;
@@ -204,7 +183,7 @@ public class RedSideGrabberAuto extends LinearOpMode {
                 frontDistance = 1130;
             }
 
-            sidePid.setSetpoint(sideDistance);
+            ultrasonicPid.setSetpoint(sideDistance);
 
             double approachDirection = (asm.getFrontDistance() > frontDistance) ? 1 : -1;
 
@@ -221,15 +200,15 @@ public class RedSideGrabberAuto extends LinearOpMode {
             while (!isStopRequested()) {
                 double laserDistance = asm.getFrontDistance();
                 double distance = -(frontDistance - laserDistance);
-                double ultrasonicDistance = odometer.getOdometerPosition();
+                double ultrasonicDistance = asm.getUltrasonicDistance();
 
-                double xCorrection = sidePid.update(ultrasonicDistance);
+                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
 
                 telemetry.addData("Front Distance", laserDistance);
                 telemetry.addData("Front Error", distance);
                 telemetry.addData("Side Distance", ultrasonicDistance);
                 telemetry.addData("X Correction", xCorrection);
-                telemetry.addData("X At Target", sidePid.atTarget());
+                telemetry.addData("X At Target", ultrasonicPid.atTarget());
                 telemetry.update();
 
                 double speed = 0.7;
@@ -245,21 +224,15 @@ public class RedSideGrabberAuto extends LinearOpMode {
                     effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
                 }
 
-                if ((laserDistance > 8000 && ultrasonicDistance > 500) || laserDistance > 30000) {
+                if ((laserDistance > 8000 && ultrasonicDistance > 400) || laserDistance > 30000) {
                     telemetry.log().add("Sanity Check Failure: Wall Laser 1: %f", laserDistance);
                     telemetry.update();
                     return FailsafeCondition.QUARRY_SIDE;
                 }
 
-                if (ultrasonicDistance < 250) {
-                    telemetry.log().add("Sanity Check Failure: Ultrasonic: %f", ultrasonicDistance);
-                    telemetry.update();
-                    return FailsafeCondition.ULTRASONIC_FAILURE;
-                }
-
                 if (distance * approachDirection < 20) {
                     effectiveSpeed = 0;
-                    if (sidePid.atTarget() || xCorrection == 0) {
+                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
                         break;
                     }
                 }
@@ -284,15 +257,15 @@ public class RedSideGrabberAuto extends LinearOpMode {
         stoneArm.lift();
 
         /*{
-            sidePid.setSetpoint(590);
-            sidePid.setAtTargetThreshold(10);
-            sidePid.setPeakOutputForward(0.5);
-            sidePid.setPeakOutputReverse(-0.5);
+            ultrasonicPid.setSetpoint(590);
+            ultrasonicPid.setAtTargetThreshold(10);
+            ultrasonicPid.setPeakOutputForward(0.5);
+            ultrasonicPid.setPeakOutputReverse(-0.5);
 
             while (!isStopRequested()) {
-                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (sidePid.atTarget()) {
+                if (ultrasonicPid.atTarget()) {
                     break;
                 }
             }
@@ -302,25 +275,38 @@ public class RedSideGrabberAuto extends LinearOpMode {
         fusion2.drive(this, new Vector2(-150, 0), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        if (stonePosition != StonePosition.RIGHT) {
-            fusion2.drive(this, new Vector2(0, -2600 + asm.getFrontDistance()), null, 1);
-        } else {
-            fusion2.drive(this, new Vector2(0, -2600 + 1130), null, 1);
+        {
+            double frontDistance = asm.getFrontDistance();
+            if (frontDistance < 8000) {
+                if (stonePosition != StonePosition.RIGHT) {
+                    fusion2.drive(this, new Vector2(0, -2000 + frontDistance), null, 1);
+                } else {
+                    fusion2.drive(this, new Vector2(0, -2000 + 1130), null, 1);
+                }
+            } else {
+                if (stonePosition == StonePosition.LEFT) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 710), null, 1);
+                } else if (stonePosition == StonePosition.CENTER) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 920), null, 1);
+                } else {
+                    fusion2.drive(this, new Vector2(0, -2000 + 1130), null, 1);
+                }
+            }
+            rb.drive(0, 0, 0);
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
         }
-        rb.drive(0, 0, 0);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(200, 0), null, 0.5);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        //fusion2.drive(this, new Vector2(200, 0), null, 0.5);
+        //if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         stoneArm.place();
 
-        TimingUtilities.sleep(this, 0.5, null, null);
+        TimingUtilities.sleep(this, 0.25, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         stoneArm.release();
 
-        TimingUtilities.sleep(this, 0.5, null, null);
+        TimingUtilities.sleep(this, 0.25, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         stoneArm.retract();
@@ -328,16 +314,16 @@ public class RedSideGrabberAuto extends LinearOpMode {
         TimingUtilities.sleep(this, 0.5, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(-200, 0), null, 1);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        //fusion2.drive(this, new Vector2(-200, 0), null, 1);
+        //if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
         /*{
-            sidePid.setSetpoint(590);
-            sidePid.setAtTargetThreshold(10);
+            ultrasonicPid.setSetpoint(590);
+            ultrasonicPid.setAtTargetThreshold(10);
 
             while (!isStopRequested()) {
-                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (sidePid.atTarget()) {
+                if (ultrasonicPid.atTarget()) {
                     break;
                 }
             }
@@ -346,7 +332,7 @@ public class RedSideGrabberAuto extends LinearOpMode {
 
         stoneArm.release();
         {
-            double sideDistance = 695;
+            double sideDistance = 427;
             double frontDistance = 107;
 
             if (stonePosition == StonePosition.LEFT) {
@@ -358,9 +344,9 @@ public class RedSideGrabberAuto extends LinearOpMode {
                 frontDistance = 525;
             }
 
-            sidePid.setSetpoint(sideDistance);
-            sidePid.setPeakOutputForward(0.25);
-            sidePid.setPeakOutputReverse(-0.25);
+            ultrasonicPid.setSetpoint(sideDistance);
+            ultrasonicPid.setPeakOutputForward(0.25);
+            ultrasonicPid.setPeakOutputReverse(-0.25);
 
             double approachDirection = (asm.getFrontDistance() > frontDistance) ? 1 : -1;
 
@@ -379,20 +365,20 @@ public class RedSideGrabberAuto extends LinearOpMode {
                 return FailsafeCondition.STOP_REQUESTED;
             }
 
-            //sidePid.setAtTargetThreshold(70);
+            //ultrasonicPid.setAtTargetThreshold(70);
 
             while (!isStopRequested()) {
                 double laserDistance = asm.getFrontDistance();
                 double distance = -(frontDistance - laserDistance);
-                double sideDistanceReading = odometer.getOdometerPosition();
+                double ultrasonicDistance = asm.getUltrasonicDistance();
 
-                double xCorrection = sidePid.update(sideDistanceReading);
+                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
 
                 telemetry.addData("Front Distance", laserDistance);
                 telemetry.addData("Front Error", distance);
-                telemetry.addData("Side Distance", sideDistanceReading);
+                telemetry.addData("Side Distance", ultrasonicDistance);
                 telemetry.addData("X Correction", xCorrection);
-                telemetry.addData("X At Target", sidePid.atTarget());
+                telemetry.addData("X At Target", ultrasonicPid.atTarget());
                 telemetry.update();
 
                 double speed = 0.7;
@@ -414,15 +400,9 @@ public class RedSideGrabberAuto extends LinearOpMode {
                     return FailsafeCondition.QUARRY_SIDE;
                 }
 
-                if (sideDistanceReading < 200) {
-                    telemetry.log().add("Sanity Check Failure: Ultrasonic: %f", sideDistanceReading);
-                    telemetry.update();
-                    return FailsafeCondition.ULTRASONIC_FAILURE;
-                }
-
                 if (distance * approachDirection < 20) {
                     effectiveSpeed = 0;
-                    if (sidePid.atTarget() || xCorrection == 0) {
+                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
                         break;
                     }
                 }
@@ -432,8 +412,6 @@ public class RedSideGrabberAuto extends LinearOpMode {
             rb.drive(0, 0, 0);
         }
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
-
-        odometer.retract();
 
         // grab second stone
 
@@ -450,15 +428,15 @@ public class RedSideGrabberAuto extends LinearOpMode {
         stoneArm.lift();
 
         /*{
-            sidePid.setSetpoint(590);
-            sidePid.setAtTargetThreshold(10);
-            sidePid.setPeakOutputForward(0.5);
-            sidePid.setPeakOutputReverse(-0.5);
+            ultrasonicPid.setSetpoint(590);
+            ultrasonicPid.setAtTargetThreshold(10);
+            ultrasonicPid.setPeakOutputForward(0.5);
+            ultrasonicPid.setPeakOutputReverse(-0.5);
 
             while (!isStopRequested()) {
-                rb.drive(sidePid.update(asm.getUltrasonicDistance()), 0, 0);
+                rb.drive(ultrasonicPid.update(asm.getUltrasonicDistance()), 0, 0);
 
-                if (sidePid.atTarget()) {
+                if (ultrasonicPid.atTarget()) {
                     break;
                 }
             }
@@ -468,88 +446,266 @@ public class RedSideGrabberAuto extends LinearOpMode {
         fusion2.drive(this, new Vector2(-150, 0), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(0, -2900 + asm.getFrontDistance()), null, 1);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        {
+            double frontDistance = asm.getFrontDistance();
+            if (frontDistance < 8000) {
+                fusion2.drive(this, new Vector2(0, -2000 + frontDistance), null, 1);
+            } else {
+                if (stonePosition == StonePosition.LEFT) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 107), null, 1);
+                } else if (stonePosition == StonePosition.CENTER) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 312), null, 1);
+                } else {
+                    fusion2.drive(this, new Vector2(0, -2000 + 525), null, 1);
+                }
+            }
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        }
 
-        fusion2.drive(this, new Vector2(200, 0), null, 0.5);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        //TimingUtilities.blockUntil(this, this::isStopRequested, null, null);
+        //if (isStopRequested()) {
+        //    return FailsafeCondition.STOP_REQUESTED;
+        //}
 
         stoneArm.place();
 
-        TimingUtilities.sleep(this, 0.5, null, null);
+        TimingUtilities.sleep(this, 0.25, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         stoneArm.release();
 
-        TimingUtilities.sleep(this, 0.5, null, null);
+        TimingUtilities.sleep(this, 0.25, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         stoneArm.lift();
 
+        {
+            double sideDistance = 427;
+            double frontDistance = 1130;
+
+            if (stonePosition == StonePosition.RIGHT) {
+                frontDistance = 910;
+                //sideDistance = 600;
+            }
+
+            ultrasonicPid.setSetpoint(sideDistance);
+            ultrasonicPid.setPeakOutputForward(0.25);
+            ultrasonicPid.setPeakOutputReverse(-0.25);
+
+            double approachDirection = (asm.getFrontDistance() > frontDistance) ? 1 : -1;
+
+            ElapsedTime failureTimer = new ElapsedTime();
+            failureTimer.reset();
+
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+            while (!isStopRequested() && (failureTimer.seconds() < 1 || asm.getFrontDistance() > 2000)) {
+                if (failureTimer.seconds() > 10) {
+                    return FailsafeCondition.QUARRY_SIDE;
+                }
+                rb.drive(0, 1, headingPid.update());
+            }
+            if (isStopRequested()) {
+                rb.drive(0, 0, 0);
+                return FailsafeCondition.STOP_REQUESTED;
+            }
+
+            //ultrasonicPid.setAtTargetThreshold(70);
+
+            while (!isStopRequested()) {
+                double laserDistance = asm.getFrontDistance();
+                double distance = -(frontDistance - laserDistance);
+                double ultrasonicDistance = asm.getUltrasonicDistance();
+
+                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
+
+                telemetry.addData("Front Distance", laserDistance);
+                telemetry.addData("Front Error", distance);
+                telemetry.addData("Side Distance", ultrasonicDistance);
+                telemetry.addData("X Correction", xCorrection);
+                telemetry.addData("X At Target", ultrasonicPid.atTarget());
+                telemetry.update();
+
+                double speed = 0.7;
+
+                double effectiveSpeed = speed * approachDirection;
+                double nominalSpeed = 0.1;
+                double slowdownPoint = 600;
+                double endCurvePoint = 200;
+                double absDistance = Math.abs(distance);
+                if (absDistance < slowdownPoint && absDistance > endCurvePoint) {
+                    effectiveSpeed = MathUtilities.map(absDistance, slowdownPoint, endCurvePoint, effectiveSpeed, Math.copySign(nominalSpeed, effectiveSpeed));
+                } else if (absDistance < endCurvePoint) {
+                    effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
+                }
+
+                if (laserDistance > 8000) {
+                    telemetry.log().add("Sanity Check Failure: Front Laser");
+                    telemetry.update();
+                    return FailsafeCondition.QUARRY_SIDE;
+                }
+
+                if (distance * approachDirection < 20) {
+                    effectiveSpeed = 0;
+                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
+                        break;
+                    }
+                }
+
+                rb.drive(xCorrection, effectiveSpeed, headingPid.update());
+            }
+            rb.drive(0, 0, 0);
+        }
+        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+
+        // grab second stone
+
+        stoneArm.lower();
+
         TimingUtilities.sleep(this, 0.5, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        foundationClaw.ready();
-        fusion2.drive(this, new Vector2(-100, 0), foundationClaw::update, 1);
+        stoneArm.grab();
+
+        TimingUtilities.sleep(this, 0.3, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.turnToHeading(this, 0.5 * Math.PI, foundationClaw::update);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        stoneArm.lift();
 
-        //fusion2.drive(this, new Vector2(300, 0), foundationClaw::update, 1);
-        //if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
-
-        fusion2.drive(this, new Vector2(0, -150), foundationClaw::update, 1);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
-
-        foundationClaw.extend();
-
-        TimingUtilities.sleep(this, 0.15, foundationClaw::update, null);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
-
-        //fusion2.driveForwardsToWall(this, foundationClaw::update);
-        //if (isStopRequested()) return;
-
-        fusion2.drive(this, new Vector2(0, 475), foundationClaw::update, 0.6);
+        fusion2.drive(this, new Vector2(-150, 0), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         {
-            headingPid.setSetpoint(0);
-            headingPid.setAtTargetThreshold(Math.toRadians(10));
-            while (!isStopRequested()) {
-                foundationClaw.update();
-                // idea: stop driving forwards after turning a certain amount?
-                rb.drive(0, 0.4, headingPid.update());
-                if (headingPid.atTarget()) {
-                    break;
+            double frontDistance = asm.getFrontDistance();
+            if (frontDistance < 8000) {
+                fusion2.drive(this, new Vector2(0, -2000 + frontDistance), null, 1);
+            } else {
+                if (stonePosition == StonePosition.RIGHT) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 910), null, 1);
+                } else {
+                    fusion2.drive(this, new Vector2(0, -2000 + 1130), null, 1);
                 }
             }
-            headingPid.setAtTargetThreshold(Math.toRadians(0.5));
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
         }
-        rb.drive(0, 0, 0);
+
+        stoneArm.release();
+
+        {
+            double sideDistance = 427;
+            double frontDistance = 910;
+
+            if (stonePosition == StonePosition.RIGHT) {
+                frontDistance = 720;
+                //sideDistance = 600;
+            }
+
+            ultrasonicPid.setSetpoint(sideDistance);
+            ultrasonicPid.setPeakOutputForward(0.25);
+            ultrasonicPid.setPeakOutputReverse(-0.25);
+
+            double approachDirection = (asm.getFrontDistance() > frontDistance) ? 1 : -1;
+
+            ElapsedTime failureTimer = new ElapsedTime();
+            failureTimer.reset();
+
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+            while (!isStopRequested() && (failureTimer.seconds() < 1 || asm.getFrontDistance() > 2000)) {
+                if (failureTimer.seconds() > 10) {
+                    return FailsafeCondition.QUARRY_SIDE;
+                }
+                rb.drive(0, 1, headingPid.update());
+            }
+            if (isStopRequested()) {
+                rb.drive(0, 0, 0);
+                return FailsafeCondition.STOP_REQUESTED;
+            }
+
+            //ultrasonicPid.setAtTargetThreshold(70);
+
+            while (!isStopRequested()) {
+                double laserDistance = asm.getFrontDistance();
+                double distance = -(frontDistance - laserDistance);
+                double ultrasonicDistance = asm.getUltrasonicDistance();
+
+                double xCorrection = ultrasonicPid.update(ultrasonicDistance);
+
+                telemetry.addData("Front Distance", laserDistance);
+                telemetry.addData("Front Error", distance);
+                telemetry.addData("Side Distance", ultrasonicDistance);
+                telemetry.addData("X Correction", xCorrection);
+                telemetry.addData("X At Target", ultrasonicPid.atTarget());
+                telemetry.update();
+
+                double speed = 0.7;
+
+                double effectiveSpeed = speed * approachDirection;
+                double nominalSpeed = 0.1;
+                double slowdownPoint = 600;
+                double endCurvePoint = 200;
+                double absDistance = Math.abs(distance);
+                if (absDistance < slowdownPoint && absDistance > endCurvePoint) {
+                    effectiveSpeed = MathUtilities.map(absDistance, slowdownPoint, endCurvePoint, effectiveSpeed, Math.copySign(nominalSpeed, effectiveSpeed));
+                } else if (absDistance < endCurvePoint) {
+                    effectiveSpeed = Math.copySign(nominalSpeed, effectiveSpeed);
+                }
+
+                if (laserDistance > 8000) {
+                    telemetry.log().add("Sanity Check Failure: Front Laser");
+                    telemetry.update();
+                    return FailsafeCondition.QUARRY_SIDE;
+                }
+
+                if (distance * approachDirection < 20) {
+                    effectiveSpeed = 0;
+                    if (ultrasonicPid.atTarget() || xCorrection == 0) {
+                        break;
+                    }
+                }
+
+                rb.drive(xCorrection, effectiveSpeed, headingPid.update());
+            }
+            rb.drive(0, 0, 0);
+        }
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        foundationClaw.retract();
-        parkingTape.setPower(1);
+        // grab second stone
 
-        TimingUtilities.runAfterDelay(() -> {
-            parkingTape.setPower(0);
-        }, 5000);
+        stoneArm.lower();
 
-        fusion2.drive(this, new Vector2(325, 0), foundationClaw::update, 1);
+        TimingUtilities.sleep(this, 0.5, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(0, -550), foundationClaw::update, 1);
+        stoneArm.grab();
+
+        TimingUtilities.sleep(this, 0.3, null, null);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(260, 0), foundationClaw::update, 1);
+        stoneArm.lift();
+
+        fusion2.drive(this, new Vector2(-150, 0), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(0, 675), foundationClaw::update, 1);
+        {
+            double frontDistance = asm.getFrontDistance();
+            if (frontDistance < 8000) {
+                fusion2.drive(this, new Vector2(0, -2000 + frontDistance), null, 1);
+            } else {
+                if (stonePosition == StonePosition.RIGHT) {
+                    fusion2.drive(this, new Vector2(0, -2000 + 910), null, 1);
+                } else {
+                    fusion2.drive(this, new Vector2(0, -2000 + 720), null, 1);
+                }
+            }
+            if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        }
+
+        stoneArm.release();
+
+        fusion2.drive(this, new Vector2(0, 500), null, 1);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
-        fusion2.drive(this, new Vector2(0, 270), null, 0.35);
-        if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
+        //TimingUtilities.blockUntil(this, this::isStopRequested, null, null);
+        //if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         return FailsafeCondition.OK;
     }

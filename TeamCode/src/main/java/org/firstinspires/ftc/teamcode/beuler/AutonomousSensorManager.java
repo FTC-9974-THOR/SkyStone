@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -23,7 +24,6 @@ public class AutonomousSensorManager {
 
     @Hardware
     public ColorSensor tapeSensor;
-
     public AutonomousSensorManager(HardwareMap hw) {
         Realizer.realize(this, hw);
     }
@@ -111,6 +111,6 @@ public class AutonomousSensorManager {
     }
 
     public double getUltrasonicDistance() {
-        return 5 * 1024 * (ultrasonic.getVoltage() / 3.3);
+        return 10 * 1024 * (ultrasonic.getVoltage() / 3.3);
     }
 }

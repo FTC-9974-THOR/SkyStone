@@ -21,8 +21,8 @@ public class FoundationClaw {
 
     public FoundationClaw(HardwareMap hw) {
         Realizer.realize(this, hw);
-        claw0.setPwmRange(new PwmControl.PwmRange(1100, 2020));
-        claw1.setPwmRange(new PwmControl.PwmRange(1320, 1900));
+        claw0.setPwmRange(new PwmControl.PwmRange(1100, 1950));
+        claw1.setPwmRange(new PwmControl.PwmRange(1300, 1900));
     }
 
     public void extend() {
