@@ -15,34 +15,49 @@ public final class Vector2 {
 
     public static final Vector2 ZERO = new Vector2(0, 0);
 
-    private double values[];
+    private double x, y;
 
     public Vector2(double x, double y) {
-        values = new double[]{x, y};
+        this.x = x;
+        this.y = y;
     }
 
+    @Deprecated
     public double get(int axis) {
-        return values[axis];
+        if (axis == 0) {
+            return x;
+        } else if (axis == 1) {
+            return y;
+        } else {
+            throw new ArrayIndexOutOfBoundsException();
+        }
     }
 
     public double getX() {
-        return get(0);
+        return x;
     }
 
     public double getY() {
-        return get(1);
+        return y;
     }
 
+    @Deprecated
     public void set(int axis, double value) {
-        values[axis] = value;
+        if (axis == 0) {
+            x = value;
+        } else if (axis == 1) {
+            y = value;
+        } else {
+            throw new ArrayIndexOutOfBoundsException();
+        }
     }
 
     public void setX(double value) {
-        set(0, value);
+        x = value;
     }
 
     public void setY(double value) {
-        set(1, value);
+        y = value;
     }
 
     public double getHeading() {
@@ -64,7 +79,7 @@ public final class Vector2 {
 
     @Override
     public String toString() {
-        return String.format(Locale.getDefault(), "(%f, %f)", values[0], values[1]);
+        return String.format(Locale.getDefault(), "(%f, %f)", getX(), getY());
     }
 
     // IMPORTANT:
@@ -109,7 +124,7 @@ public final class Vector2 {
     }
 
     public static Vector2 rotate(Vector2 vec1, double theta) {
-        double[] rotated = MathUtilities.rotate2D(vec1.values, theta);
+        double[] rotated = MathUtilities.rotate2D(new double[] {vec1.getX(), vec1.getY()}, theta);
         return new Vector2(rotated[0], rotated[1]);
     }
 

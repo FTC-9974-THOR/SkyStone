@@ -12,6 +12,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigurationType;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 import org.ftc9974.thorcore.internal.RealizableFactory;
 
 import java.util.Locale;
@@ -388,6 +389,37 @@ public final class Motor implements DcMotorEx, OpModeManagerNotifier.Notificatio
         // but this is clearer
         if (isMotor()) {
             return stallDetector.isStalled();
+        }
+        return false;
+    }
+
+    @Override
+    public double getCurrent(CurrentUnit unit) {
+        if (isMotor()) {
+            return dcMotor.getCurrent(unit);
+        }
+        return -1;
+    }
+
+    @Override
+    public double getCurrentAlert(CurrentUnit unit) {
+        if (isMotor()) {
+            return dcMotor.getCurrentAlert(unit);
+        }
+        return -1;
+    }
+
+    @Override
+    public void setCurrentAlert(double current, CurrentUnit unit) {
+        if (isMotor()) {
+            dcMotor.setCurrentAlert(current, unit);
+        }
+    }
+
+    @Override
+    public boolean isOverCurrent() {
+        if (isMotor()) {
+            return dcMotor.isOverCurrent();
         }
         return false;
     }

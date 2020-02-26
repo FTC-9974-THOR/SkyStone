@@ -303,9 +303,9 @@ public class RedSideGrabberAuto extends LinearOpMode {
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
 
         if (stonePosition != StonePosition.RIGHT) {
-            fusion2.drive(this, new Vector2(0, -2600 + asm.getFrontDistance()), null, 1);
+            fusion2.drive(this, new Vector2(0, -2650 + asm.getFrontDistance()), null, 1);
         } else {
-            fusion2.drive(this, new Vector2(0, -2600 + 1130), null, 1);
+            fusion2.drive(this, new Vector2(0, -2650 + 1130), null, 1);
         }
         rb.drive(0, 0, 0);
         if (isStopRequested()) return FailsafeCondition.STOP_REQUESTED;
@@ -346,7 +346,7 @@ public class RedSideGrabberAuto extends LinearOpMode {
 
         stoneArm.release();
         {
-            double sideDistance = 695;
+            double sideDistance = 680;
             double frontDistance = 107;
 
             if (stonePosition == StonePosition.LEFT) {

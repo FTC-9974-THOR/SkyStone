@@ -54,7 +54,6 @@ public final class PIDF {
     private double runningIntegral;
     private double lastError;
     private double integralMin, integralMax;
-    private double deadband;
     private double errorThreshold;
     private double lastInput;
     private double lastOutput;
@@ -167,10 +166,6 @@ public final class PIDF {
         return periodAppliesOnlyToDTerm;
     }
 
-    public void setOutputDeadband(double deadband) {
-        this.deadband = deadband;
-    }
-
     public void setAtTargetThreshold(double threshold) {
         errorThreshold = threshold;
     }
@@ -256,7 +251,7 @@ public final class PIDF {
         // This is important! This updates the atTarget()
         // logic. Without it, atTarget() can return false
         // positives, due to lastError not being updated.
-        lastError = setpoint - lastInput;
+        lastError = getContinuousError(setpoint - lastInput);
     }
 
     /**
@@ -368,10 +363,6 @@ public final class PIDF {
 
     public double getLastError() {
         return lastError;
-    }
-
-    public double getOutputDeadband() {
-        return deadband;
     }
 
     /**

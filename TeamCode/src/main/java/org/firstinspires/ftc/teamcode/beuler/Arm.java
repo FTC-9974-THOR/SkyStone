@@ -282,21 +282,25 @@ public class Arm {
             if (armInControlledMotion) {
                 double currentPosition = getArmPosition();
                 double cruiseSpeed = 1;
+                double stopSpeed = 0.3;
                 if (currentPosition > MID_SHOULDER && getArmTargetPosition() > MID_SHOULDER && shoulderStartPoint < getArmTargetPosition()) {
                     cruiseSpeed = 0.5;
                 }
+
+                // slowdown curve
                 speedLimit = cruiseSpeed;
                 toTarget = Math.abs(getArmTargetPosition() - currentPosition);
                 if (toTarget < 0.2) {
-                    speedLimit = 0.2;
+                    speedLimit = stopSpeed;
                 } else if (toTarget < 0.5) {
-                    speedLimit = MathUtilities.map(toTarget, 0.2, 0.5, 0.2, cruiseSpeed);
+                    speedLimit = MathUtilities.map(toTarget, 0.2, 0.5, stopSpeed, cruiseSpeed);
                 }
 
+                // startup curve
                 if (Math.abs(getArmTargetPosition() - shoulderStartPoint) > 0.5) {
                     fromStart = Math.abs(shoulderStartPoint - currentPosition);
                     if (fromStart < 0.5) {
-                        speedLimit = Math.min(speedLimit, MathUtilities.map(fromStart, 0, 0.5, 0.3, cruiseSpeed));
+                        speedLimit = Math.min(speedLimit, MathUtilities.map(fromStart, 0, 0.5, 0.4, cruiseSpeed));
                     }
                 }
                 shoulderPid.setPeakOutputForward(speedLimit);

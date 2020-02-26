@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 
 @TeleOp(name = "IMU Debugger")
-@Disabled
+//@Disabled
 public class IMUDebugger extends OpMode {
 
     private IMUNavSource imu;

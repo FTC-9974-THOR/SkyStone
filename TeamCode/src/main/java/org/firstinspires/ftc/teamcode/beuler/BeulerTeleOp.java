@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.beuler;
 
 import android.os.SystemClock;
 
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -11,6 +12,8 @@ import org.ftc9974.thorcore.control.PIDF;
 import org.ftc9974.thorcore.control.navigation.IMUNavSource;
 import org.ftc9974.thorcore.control.navigation.NavSource;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
+
+import java.util.List;
 
 @TeleOp(name = "Beuler Tele Op")
 public class BeulerTeleOp extends OpMode {
@@ -53,6 +56,8 @@ public class BeulerTeleOp extends OpMode {
     private ElapsedTime retractTimer;
     private boolean retractSequenceEngaged;
 
+    private List<LynxModule> revHubs;
+
     @Override
     public void init() {
         rb = new MecanumDrive(hardwareMap);
@@ -64,7 +69,7 @@ public class BeulerTeleOp extends OpMode {
         blinkin = new Blinkin(hardwareMap);
         stoneArm = new StoneArm(hardwareMap);
         stoneArm.retract();
-        stoneArm.grab();
+        stoneArm.release();
 
         parkingTape = new ParkingTape(hardwareMap);
 
@@ -83,12 +88,22 @@ public class BeulerTeleOp extends OpMode {
         Thread.currentThread().setPriority(7);
 
         retractTimer = new ElapsedTime();
+
+        revHubs = hardwareMap.getAll(LynxModule.class);
+
+        for (LynxModule revHub : revHubs) {
+            revHub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+        }
     }
 
     @Override
     public void loop() {
         long startTime = System.nanoTime();
         lastTimeStamp = startTime;
+
+        for (LynxModule revHub : revHubs) {
+            revHub.clearBulkCache();
+        }
 
         //telemetry.addData("Odometer Position", odometer.getOdometerPosition());
 

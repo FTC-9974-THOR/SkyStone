@@ -354,7 +354,7 @@ public class BlueSideGrabberAuto extends LinearOpMode {
         }
 
         {
-            double sideDistance = 675;
+            double sideDistance = 680;
             double backDistance = 575;
 
             if (stonePosition == StonePosition.LEFT) {

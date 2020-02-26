@@ -49,7 +49,7 @@ public final class IMUNavSource implements NavSource, BNO055IMU.AccelerationInte
         imu = hardwareMap.get(BNO055IMU.class, "imu");
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit = BNO055IMU.AngleUnit.RADIANS;
-        parameters.mode = BNO055IMU.SensorMode.NDOF;
+        parameters.mode = BNO055IMU.SensorMode.IMU;
         parameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
         parameters.accelerationIntegrationAlgorithm = this;
         parameters.calibrationDataFile = calibrationFile;
