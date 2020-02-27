@@ -11,4 +11,7 @@ public interface MovementStrategy {
     boolean atHeadingTarget();
 
     default void reset() {}
+    default void onNewPositionalTarget(Vector2 target) {}
+    default void onNewHeadingTarget(double target) {}
+    default void onNewPositionalAndHeadingTarget(Vector2 targetPosition, double targetHeading) {}
 }

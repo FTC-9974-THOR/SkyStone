@@ -37,18 +37,21 @@ public final class SynchronousNavigator {
 
     public void setTargetPosition(Vector2 position) {
         movementStrategy.reset();
+        movementStrategy.onNewPositionalTarget(position);
         targetPosition = position;
         hasPosition = true;
     }
 
     public void setTargetHeading(double heading) {
         movementStrategy.reset();
+        movementStrategy.onNewHeadingTarget(heading);
         targetHeading = heading;
         hasHeading = true;
     }
 
     public void setTarget(Vector2 position, double heading) {
         movementStrategy.reset();
+        movementStrategy.onNewPositionalAndHeadingTarget(position, heading);
         targetPosition = position;
         targetHeading = heading;
         hasPosition = true;

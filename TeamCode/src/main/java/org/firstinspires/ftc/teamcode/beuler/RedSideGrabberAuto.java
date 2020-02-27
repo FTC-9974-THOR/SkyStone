@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -23,6 +24,7 @@ import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.MathUtilities;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
+@Disabled
 @Autonomous(name = "Red Skystone & Foundation", group = "C")
 public class RedSideGrabberAuto extends LinearOpMode {
 

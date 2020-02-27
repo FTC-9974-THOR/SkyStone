@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.beuler;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.Fusion2;
@@ -9,6 +10,7 @@ import org.ftc9974.thorcore.control.math.Vector2;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
+@Disabled
 @Autonomous(name = "Blue Foundation", group = "A")
 public class BlueFoundationAuto extends LinearOpMode {
 

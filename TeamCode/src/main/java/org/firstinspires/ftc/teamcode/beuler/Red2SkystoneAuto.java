@@ -27,7 +27,7 @@ import org.ftc9974.thorcore.util.TimingUtilities;
 
 import java.util.List;
 
-@Autonomous(name = "Red 2 Skystone Auto", group = "RND")
+@Autonomous(name = "Red Skystone & Foundation", group = "C")
 public class Red2SkystoneAuto extends LinearOpMode {
 
     private MecanumDrive rb;
