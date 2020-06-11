@@ -24,6 +24,9 @@ public final class OdometerNavSource implements NavSource {
 
     private int xNegation, yNegation;
 
+    private double headingOffset;
+    private boolean totalizing;
+
     public OdometerNavSource(HardwareMap hw, DcMotorEx xEncoder, DcMotorEx yEncoder, Vector2 xPosition, Vector2 yPosition, double wheelDiameter, double ticksPerRev) {
         this.xEncoder = xEncoder;
         this.yEncoder = yEncoder;
@@ -39,6 +42,7 @@ public final class OdometerNavSource implements NavSource {
         yRho = Math.atan(Math.abs(yPosition.getY() / yPosition.getX()));
         xNegation = 1;
         yNegation = 1;
+
     }
 
     public void resetOdometers() {
@@ -46,6 +50,7 @@ public final class OdometerNavSource implements NavSource {
         yEncoder.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         xEncoder.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         yEncoder.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        headingOffset = getHeading();
     }
 
     public void setXInversion(boolean inverted) {
@@ -54,6 +59,10 @@ public final class OdometerNavSource implements NavSource {
 
     public void setYInversion(boolean inverted) {
         yNegation = inverted ? -1 : 1;
+    }
+
+    public void setTotalizing(boolean totalizing) {
+        this.totalizing = totalizing;
     }
 
     @Override
@@ -73,24 +82,29 @@ public final class OdometerNavSource implements NavSource {
         double continuousHeading = currentHeading + 2 * Math.PI * headingWraparound;
         xPosition += continuousHeading * xR * Math.sin(xRho);
         yPosition += continuousHeading * yR * Math.cos(yRho);
-        int xDelta = xPosition - lastXPosition;
-        int yDelta = yPosition - lastYPosition;
-        Vector2 delta = new Vector2(
-                wheelDiameter * Math.PI * (xDelta / ticksPerRev),
-                wheelDiameter * Math.PI * (yDelta / ticksPerRev)
-        );
-        delta = delta.rotate(lastHeading);
-        currentPosition = currentPosition.add(delta);
-        lastHeading = getHeading();
-        //lastHeading = currentHeading;
-        lastXPosition = xPosition;
-        lastYPosition = yPosition;
-        return currentPosition;*/
-        currentPosition = new Vector2(
-                wheelDiameter * Math.PI * (xPosition / ticksPerRev),
-                wheelDiameter * Math.PI * (yPosition / ticksPerRev)
-        );
-        return currentPosition;
+        */
+        if (totalizing) {
+            int xDelta = xPosition - lastXPosition;
+            int yDelta = yPosition - lastYPosition;
+            Vector2 delta = new Vector2(
+                    wheelDiameter * Math.PI * (xDelta / ticksPerRev),
+                    wheelDiameter * Math.PI * (yDelta / ticksPerRev)
+            );
+            delta = delta.rotate((getHeading() - headingOffset));
+            currentPosition = currentPosition.add(delta);
+            lastHeading = getHeading();
+            //lastHeading = currentHeading;
+            lastXPosition = xPosition;
+            lastYPosition = yPosition;
+            return currentPosition;
+        } else {
+            currentPosition = new Vector2(
+                    wheelDiameter * Math.PI * (xPosition / ticksPerRev),
+                    wheelDiameter * Math.PI * (yPosition / ticksPerRev)
+            );
+            return currentPosition;
+        }
+
     }
 
     @Override

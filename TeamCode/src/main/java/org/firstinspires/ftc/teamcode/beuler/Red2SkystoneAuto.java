@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -22,6 +23,7 @@ import org.ftc9974.thorcore.control.navigation.PIDFMovementStrategy;
 import org.ftc9974.thorcore.control.navigation.SynchronousNavigator;
 import org.ftc9974.thorcore.control.navigation.VuMarkNavSource;
 import org.ftc9974.thorcore.robot.drivetrains.MecanumDrive;
+import org.ftc9974.thorcore.util.CompositeFunction;
 import org.ftc9974.thorcore.util.MathUtilities;
 import org.ftc9974.thorcore.util.TimingUtilities;
 
@@ -70,16 +72,18 @@ public class Red2SkystoneAuto extends LinearOpMode {
                 8192);
         odometerNavSource.setXInversion(false);
         odometerNavSource.setYInversion(true);
+        odometerNavSource.setTotalizing(false);
         pidfMovementStrategy = new PIDFMovementStrategy(
                 0.003, 0, 0.00005, 0,
                 0.0025, 0, 0.0001, 0,
-                0.6 * 5 , 0, 0.6 / 8, 0,
-                0.18,
-                0.18,
+                //0.6 * 5, 0, 0.6 / 8, 0,
+                2.4, 0.001, 0.03, 0,
+                0.21,
+                0.21,
                 0.1,
                 10,
                 20,
-                0.02
+                0.027
         );
         pidfMovementStrategy.setContinuity(-Math.PI, Math.PI);
         pidfMovementStrategy.setXPeriod(0.05);
@@ -228,7 +232,7 @@ public class Red2SkystoneAuto extends LinearOpMode {
         telemetry.update();*/
 
         navigator.setStopAtEnd(true);
-        navigator.setTargetPosition(new Vector2(720, -1835));
+        navigator.setTargetPosition(new Vector2(750, -1870));
         do {
             clearHubCaches();
             telemetry.addData("Current Position", odometerNavSource.getLocation());
@@ -290,16 +294,17 @@ public class Red2SkystoneAuto extends LinearOpMode {
                     Vector2 targetPosition = navigator.getTargetPosition();
                     switch (stoneVision.getStonePosition()) {
                         case RIGHT:
-                            targetPosition.setX(710);
+                            targetPosition.setX(734);
                             break;
                         case CENTER:
-                            targetPosition.setX(710);
+                            targetPosition.setX(727);
                             break;
                         case LEFT:
-                            targetPosition.setX(710);
+                            targetPosition.setX(733);
                             break;
                     }
                     navigator.setTargetPosition(targetPosition);
+                    //navigator.setAllowTurning(false);
                     targetShift = true;
                 }
                 if (!speedShift && odometerNavSource.getLocation().getY() > 0) {
@@ -310,10 +315,12 @@ public class Red2SkystoneAuto extends LinearOpMode {
             } while (!isStopRequested() && !navigator.atTarget());
         }
         if (isStopRequested()) return;
+        navigator.setAllowTurning(true);
         pidfMovementStrategy.setSpeedLimit(1);
         telemetry.log().add("Point 2");
         telemetry.update();
 
+        RobotLog.ii("RedAuto", "Attempting grab at %s", odometerNavSource.getLocation().toString());
         stoneArm.lower();
         TimingUtilities.sleep(this, 0.4, null, null);
         if (isStopRequested()) return;
@@ -325,7 +332,7 @@ public class Red2SkystoneAuto extends LinearOpMode {
         navigator.setStopAtEnd(false);
         {
             Vector2 targetPosition = navigator.getTargetPosition();
-            targetPosition.setX(600);
+            targetPosition.setX(620);
             navigator.setTargetPosition(targetPosition);
         }
         do {
@@ -339,7 +346,7 @@ public class Red2SkystoneAuto extends LinearOpMode {
         } while (!isStopRequested() && !navigatorWithin(50));
         if (isStopRequested()) return;
 
-        navigator.setTargetPosition(new Vector2(550, -1400));
+        navigator.setTargetPosition(new Vector2(620, -1400));
         do {
             clearHubCaches();
             telemetry.addData("Current Position", odometerNavSource.getLocation());
@@ -352,7 +359,18 @@ public class Red2SkystoneAuto extends LinearOpMode {
         if (isStopRequested()) return;
 
         navigator.setStopAtEnd(true);
-        navigator.setTargetPosition(new Vector2(720, -2100));
+        switch (stoneVision.getStonePosition()) {
+            case LEFT:
+                navigator.setTargetPosition(new Vector2(740, -2100));
+                break;
+            case CENTER:
+                navigator.setTargetPosition(new Vector2(720, -2100));
+                break;
+            case RIGHT:
+                navigator.setTargetPosition(new Vector2(740, -2100));
+                break;
+        }
+        //navigator.setTargetPosition(new Vector2(, -2100));
         do {
             clearHubCaches();
             telemetry.addData("Current Position", odometerNavSource.getLocation());
@@ -484,6 +502,18 @@ public class Red2SkystoneAuto extends LinearOpMode {
         odometerNavSource.resetOdometers();
         navigator.setAllowMovement(true);
 
+        switch (stoneVision.getStonePosition()) {
+            case LEFT:
+                navigator.setTargetPosition(new Vector2(0, -330));
+                break;
+            case CENTER:
+                navigator.setTargetPosition(new Vector2(0, -280));
+                break;
+            case RIGHT:
+                navigator.setTargetPosition(new Vector2(0, -250));
+                break;
+        }
+        pidfMovementStrategy.setSpeedLimit(0.7);
         navigator.setTargetPosition(new Vector2(0, -250));
         foundationClaw.ready();
         do {
@@ -496,23 +526,27 @@ public class Red2SkystoneAuto extends LinearOpMode {
             navigator.update();
         } while (!isStopRequested() && !navigator.atTarget());
         if (isStopRequested()) return;
+        pidfMovementStrategy.setSpeedLimit(1);
 
         foundationClaw.extend();
         TimingUtilities.sleep(this, 0.5, null, null);
         if (isStopRequested()) return;
 
-        navigator.setAllowMovement(false);
-        navigator.setTargetHeading(0.5 * Math.PI - Math.toRadians(10));
-        do {
-            clearHubCaches();
-            telemetry.addData("Current Position", odometerNavSource.getLocation());
-            telemetry.addData("Target Position", navigator.getTargetPosition());
-            telemetry.addData("Current Heading", odometerNavSource.getHeading());
-            telemetry.addData("Target Heading", navigator.getTargetHeading());
-            telemetry.update();
-            navigator.update();
-        } while (!isStopRequested() && !pidfMovementStrategy.atHeadingTarget());
-        if (isStopRequested()) return;
+        {
+            ElapsedTime timer = new ElapsedTime();
+            navigator.setAllowMovement(false);
+            navigator.setTargetHeading(0.5 * Math.PI - Math.toRadians(10));
+            do {
+                clearHubCaches();
+                telemetry.addData("Current Position", odometerNavSource.getLocation());
+                telemetry.addData("Target Position", navigator.getTargetPosition());
+                telemetry.addData("Current Heading", odometerNavSource.getHeading());
+                telemetry.addData("Target Heading", navigator.getTargetHeading());
+                telemetry.update();
+                navigator.update();
+            } while (!isStopRequested() && !pidfMovementStrategy.atHeadingTarget() && timer.seconds() < 1.3);
+            if (isStopRequested()) return;
+        }
 
         //TimingUtilities.sleep(this, 0.2, null, null);
         //if (isStopRequested()) return;
@@ -556,7 +590,7 @@ public class Red2SkystoneAuto extends LinearOpMode {
         odometerNavSource.resetOdometers();
 
         parkingTape.setPower(1);
-        TimingUtilities.runAfterDelay(() -> parkingTape.setPower(0), 4000);
+        TimingUtilities.runAfterDelay(() -> parkingTape.setPower(0), 8000);
 
         {
             ElapsedTime timer = new ElapsedTime();
